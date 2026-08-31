@@ -1,0 +1,224 @@
+import { requireDatabase } from "../config/database";
+import type { CustomerInput } from "../validators/customer.schema";
+
+export async function findCustomers(view: "active" | "archived" | "all") {
+  const condition =
+    view === "all"
+      ? "TRUE"
+      : view === "archived"
+        ? "c.deleted_at IS NOT NULL"
+        : "c.deleted_at IS NULL";
+  return (
+    await requireDatabase().query(`
+    SELECT c.id, c.name, c.phone, c.email, c.created_at AS "customerSince",
+      c.plate_number AS "plateNumber",
+      c.building_no AS "buildingNo",c.flat_no AS "flatNo",c.parking_no AS "parkingNo",
+      c.area_id AS "areaId",c.building_id AS "buildingId",
+      a.name AS "areaName",b.name AS "buildingName",prop.name AS "propertyName",
+      COALESCE(vehicle_rows.vehicles,'[]'::JSON) AS vehicles,
+      c.plan_start_date AS "planStartDate", c.status, c.deleted_at AS "archivedAt",
+      p.name AS plan, c.agreed_price AS price, c.billing_type AS "billingType",
+      c.auto_invoice AS "autoInvoice", c.next_invoice_date AS "nextInvoiceDate",
+      current_invoice.status AS "invoiceStatus",
+      current_invoice.due_date AS "invoiceDueDate"
+    FROM customers c
+    LEFT JOIN plans p ON p.id=c.plan_id
+    JOIN areas a ON a.id=c.area_id
+    JOIN properties prop ON prop.id=a.property_id
+    JOIN buildings b ON b.id=c.building_id
+    LEFT JOIN LATERAL (
+      SELECT JSON_AGG(
+        JSON_BUILD_OBJECT(
+          'id',v.id,'plateNumber',v.plate_number,'makeModel',COALESCE(v.make_model,''),
+          'parkingNumber',COALESCE(v.parking_number,''),'isPrimary',v.is_primary
+        ) ORDER BY v.is_primary DESC,v.id
+      ) AS vehicles
+      FROM vehicles v WHERE v.customer_id=c.id
+    ) vehicle_rows ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT i.status, i.due_date
+      FROM invoices i
+      WHERE i.customer_id = c.id
+      ORDER BY
+        CASE i.status
+          WHEN 'overdue' THEN 1
+          WHEN 'partially_overdue' THEN 1
+          WHEN 'pending' THEN 2
+          WHEN 'sent' THEN 3
+          WHEN 'partially_paid' THEN 3
+          ELSE 4
+        END,
+        i.billing_period DESC,
+        i.id DESC
+      LIMIT 1
+    ) current_invoice ON TRUE
+    WHERE ${condition} ORDER BY c.created_at DESC
+  `)
+  ).rows;
+}
+
+export async function createCustomer(input: CustomerInput) {
+  const {
+    name,
+    phone,
+    email,
+    plateNumber,
+    planId,
+    planStartDate,
+    agreedPrice,
+    billingType,
+    autoInvoice,
+    nextInvoiceDate,
+    buildingNo,
+    flatNo,
+    parkingNo,
+    areaId,
+    buildingId,
+    vehicles,
+  } = input;
+  const client = await requireDatabase().connect();
+  try {
+    await client.query("BEGIN");
+    const location = await client.query(
+      `SELECT 1 FROM buildings
+       WHERE id=$1 AND area_id=$2 AND is_active=TRUE`,
+      [buildingId, areaId],
+    );
+    if (!location.rowCount) throw new Error("Selected building does not belong to this area");
+    const result = await client.query(
+      `INSERT INTO customers (
+        name,phone,email,plate_number,plan_id,plan_start_date,agreed_price,
+        billing_type,auto_invoice,next_invoice_date,building_no,flat_no,parking_no,
+        area_id,building_id
+      ) VALUES (
+        $1,$2,NULLIF($3,''),$4,$5,$6,$7,$8,$9,$10,
+        NULLIF($11,''),NULLIF($12,''),NULLIF($13,''),$14,$15
+      ) RETURNING *`,
+      [
+        name,
+        phone,
+        email,
+        plateNumber,
+        planId,
+        planStartDate,
+        agreedPrice,
+        billingType,
+        autoInvoice,
+        nextInvoiceDate,
+        buildingNo,
+        flatNo,
+        parkingNo,
+        areaId,
+        buildingId,
+      ],
+    );
+    const customerId = Number(result.rows[0].id);
+    for (const [index, vehicle] of vehicles.entries()) {
+      await client.query(
+        `INSERT INTO vehicles(customer_id,plate_number,make_model,parking_number,is_primary)
+         VALUES($1,$2,NULLIF($3,''),NULLIF($4,''),$5)`,
+        [customerId, vehicle.plateNumber, vehicle.makeModel, vehicle.parkingNumber, index === 0],
+      );
+    }
+    await client.query("COMMIT");
+    return result.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateCustomer(id: number, input: CustomerInput) {
+  const {
+    name,
+    phone,
+    email,
+    plateNumber,
+    planId,
+    planStartDate,
+    agreedPrice,
+    billingType,
+    autoInvoice,
+    nextInvoiceDate,
+    buildingNo,
+    flatNo,
+    parkingNo,
+    areaId,
+    buildingId,
+    vehicles,
+  } = input;
+  const client = await requireDatabase().connect();
+  try {
+    await client.query("BEGIN");
+    const location = await client.query(
+      `SELECT 1 FROM buildings
+       WHERE id=$1 AND area_id=$2 AND is_active=TRUE`,
+      [buildingId, areaId],
+    );
+    if (!location.rowCount) throw new Error("Selected building does not belong to this area");
+    const result = await client.query(
+      `UPDATE customers SET name=$1,phone=$2,email=NULLIF($3,''),plate_number=$4,plan_id=$5,
+       plan_start_date=$6,agreed_price=$7,billing_type=$8,auto_invoice=$9,
+       next_invoice_date=$10,building_no=NULLIF($11,''),flat_no=NULLIF($12,''),
+       parking_no=NULLIF($13,''),area_id=$14,building_id=$15,updated_at=NOW()
+       WHERE id=$16 AND deleted_at IS NULL RETURNING *`,
+      [
+        name,
+        phone,
+        email,
+        plateNumber,
+        planId,
+        planStartDate,
+        agreedPrice,
+        billingType,
+        autoInvoice,
+        nextInvoiceDate,
+        buildingNo,
+        flatNo,
+        parkingNo,
+        areaId,
+        buildingId,
+        id,
+      ],
+    );
+    if (!result.rowCount) {
+      await client.query("ROLLBACK");
+      return undefined;
+    }
+    await client.query("DELETE FROM vehicles WHERE customer_id=$1", [id]);
+    for (const [index, vehicle] of vehicles.entries()) {
+      await client.query(
+        `INSERT INTO vehicles(customer_id,plate_number,make_model,parking_number,is_primary)
+         VALUES($1,$2,NULLIF($3,''),NULLIF($4,''),$5)`,
+        [id, vehicle.plateNumber, vehicle.makeModel, vehicle.parkingNumber, index === 0],
+      );
+    }
+    await client.query("COMMIT");
+    return result.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function archiveCustomer(id: number) {
+  return (
+    await requireDatabase().query(
+      "UPDATE customers SET deleted_at=NOW(),status='archived' WHERE id=$1 AND deleted_at IS NULL RETURNING id",
+      [id],
+    )
+  ).rows[0];
+}
+
+export async function restoreCustomer(id: number) {
+  return (
+    await requireDatabase().query(
+      "UPDATE customers SET deleted_at=NULL,status='active',updated_at=NOW() WHERE id=$1 AND deleted_at IS NOT NULL RETURNING id",
+      [id],
+    )
+  ).rows[0];
+}

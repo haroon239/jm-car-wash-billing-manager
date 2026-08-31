@@ -1,0 +1,8 @@
+node_modules/
+dist/
+build/
+coverage/
+.git/
+.railway/
+package-lock.json
+*.sql
