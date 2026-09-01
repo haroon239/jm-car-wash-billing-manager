@@ -21,6 +21,7 @@ const sqlPaths = [
     new URL("../../../database/012_partial_payments_and_invoice_notes.sql", import.meta.url),
   ),
   fileURLToPath(new URL("../../../database/013_locations_and_vehicles.sql", import.meta.url)),
+  fileURLToPath(new URL("../../../database/014_contracts_and_wash_tracking.sql", import.meta.url)),
 ];
 async function migrate() {
   const client = new pg.Client({ connectionString });

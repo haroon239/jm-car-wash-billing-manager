@@ -136,9 +136,12 @@ export function DashboardController() {
     plate: "",
     buildingNo: "",
     flatNo: "",
+    roomNo: "",
     parkingNo: "",
     plan: "Basic",
     planStartDate: new Date().toISOString().slice(0, 10),
+    contractEndDate: null,
+    washesPerCycle: 4,
     amount: 99,
     billingType: "monthly",
     autoInvoice: true,
@@ -306,9 +309,13 @@ export function DashboardController() {
               plateNumber: string;
               buildingNo?: string | null;
               flatNo?: string | null;
+              roomNo?: string | null;
               parkingNo?: string | null;
               customerSince?: string | null;
               planStartDate?: string;
+              contractEndDate?: string | null;
+              washesPerCycle?: string | number | null;
+              washesCompleted?: string | number;
               archivedAt?: string | null;
               plan?: string;
               price?: string | number;
@@ -330,6 +337,7 @@ export function DashboardController() {
               plate: customer.plateNumber,
               buildingNo: customer.buildingNo ?? "",
               flatNo: customer.flatNo ?? "",
+              roomNo: customer.roomNo ?? "",
               parkingNo: customer.parkingNo ?? "",
               propertyName: customer.propertyName,
               areaId: customer.areaId ? Number(customer.areaId) : undefined,
@@ -345,6 +353,10 @@ export function DashboardController() {
               customerSince: customer.customerSince ?? new Date().toISOString(),
               plan: customer.plan ?? "No plan",
               planStartDate: customer.planStartDate?.slice(0, 10) ?? "",
+              contractEndDate: customer.contractEndDate?.slice(0, 10) ?? null,
+              washesPerCycle:
+                customer.washesPerCycle == null ? null : Number(customer.washesPerCycle),
+              washesCompleted: Number(customer.washesCompleted ?? 0),
               archivedAt: customer.archivedAt,
               amount: Number(customer.price ?? 0),
               billingType: customer.billingType ?? "monthly",
@@ -1006,9 +1018,12 @@ export function DashboardController() {
             plate: customer.plate,
             buildingNo: customer.buildingNo,
             flatNo: customer.flatNo,
+            roomNo: customer.roomNo,
             parkingNo: customer.parkingNo,
             plan: customer.plan,
             planStartDate: customer.planStartDate,
+            contractEndDate: customer.contractEndDate,
+            washesPerCycle: customer.washesPerCycle,
             amount: customer.amount,
             billingType: customer.billingType,
             autoInvoice: customer.autoInvoice,
@@ -1032,9 +1047,12 @@ export function DashboardController() {
             plate: "",
             buildingNo: "",
             flatNo: "",
+            roomNo: "",
             parkingNo: "",
             plan: "Basic",
             planStartDate: new Date().toISOString().slice(0, 10),
+            contractEndDate: null,
+            washesPerCycle: plans[0]?.washesPerMonth ?? null,
             amount: plans[0]?.price ?? 0,
             billingType: "monthly",
             autoInvoice: true,
@@ -1074,12 +1092,15 @@ export function DashboardController() {
           plateNumber: primaryVehicle.plateNumber,
           buildingNo: selectedLocation.buildingName,
           flatNo: customerForm.flatNo,
+          roomNo: customerForm.roomNo,
           parkingNo: primaryVehicle.parkingNumber,
           areaId: customerForm.areaId,
           buildingId: customerForm.buildingId,
           vehicles,
           planId: selectedPlan.id,
           planStartDate: customerForm.planStartDate,
+          contractEndDate: customerForm.contractEndDate,
+          washesPerCycle: customerForm.washesPerCycle,
           agreedPrice: customerForm.amount,
           billingType: customerForm.billingType,
           autoInvoice: customerForm.billingType === "manual" ? false : customerForm.autoInvoice,
@@ -1959,6 +1980,16 @@ export function DashboardController() {
                   placeholder="e.g. 8046"
                 />
               </label>
+              <label>
+                <span>Apartment / room number (optional)</span>
+                <input
+                  value={customerForm.roomNo}
+                  onChange={(event) =>
+                    setCustomerForm({ ...customerForm, roomNo: event.target.value })
+                  }
+                  placeholder="e.g. Room 2"
+                />
+              </label>
               <h3 className="form-section-title">
                 <span>3</span> Vehicles
               </h3>
@@ -2065,6 +2096,7 @@ export function DashboardController() {
                       ...customerForm,
                       plan: event.target.value,
                       amount: plan?.price ?? customerForm.amount,
+                      washesPerCycle: plan?.washesPerMonth ?? customerForm.washesPerCycle,
                     });
                   }}
                 >
@@ -2113,6 +2145,23 @@ export function DashboardController() {
                 </select>
               </label>
               <label>
+                <span>Included washes per billing cycle</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={customerForm.washesPerCycle ?? ""}
+                  onChange={(event) =>
+                    setCustomerForm({
+                      ...customerForm,
+                      washesPerCycle: event.target.value ? Number(event.target.value) : null,
+                    })
+                  }
+                  placeholder="e.g. 12"
+                />
+                <small>Employee can record each completed wash from the customer profile.</small>
+              </label>
+              <label>
                 <span>Plan start date</span>
                 <input
                   required
@@ -2129,6 +2178,21 @@ export function DashboardController() {
                     })
                   }
                 />
+              </label>
+              <label>
+                <span>Contract end date (optional)</span>
+                <input
+                  type="date"
+                  min={customerForm.planStartDate}
+                  value={customerForm.contractEndDate ?? ""}
+                  onChange={(event) =>
+                    setCustomerForm({
+                      ...customerForm,
+                      contractEndDate: event.target.value || null,
+                    })
+                  }
+                />
+                <small>Leave empty for an ongoing contract.</small>
               </label>
               {customerForm.billingType !== "manual" && (
                 <>

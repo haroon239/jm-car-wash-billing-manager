@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
-import type { Customer, CustomerActivity, Invoice, Payment } from "../types/domain";
+import { useEffect, useMemo, useState } from "react";
+import type { Customer, CustomerActivity, Invoice, Payment, WashRecord } from "../types/domain";
 
-type Tab = "overview" | "invoices" | "payments" | "activity";
+type Tab = "overview" | "washes" | "invoices" | "payments" | "activity";
 
 type Props = {
   customer: Customer;
@@ -32,6 +32,59 @@ export function CustomerProfilePage({
   onMarkPaid,
 }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
+  const [washes, setWashes] = useState<WashRecord[]>([]);
+  const [washBusy, setWashBusy] = useState(false);
+  useEffect(() => {
+    void fetch(`/api/customers/${customer.id}/washes`)
+      .then((response) => (response.ok ? response.json() : []))
+      .then(setWashes);
+  }, [customer.id]);
+
+  async function recordWash() {
+    const note = window.prompt("Optional wash note (staff name, special service, etc.)", "") ?? "";
+    setWashBusy(true);
+    try {
+      const response = await fetch(`/api/customers/${customer.id}/washes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vehicleId: customer.vehicles?.[0]?.id ?? null,
+          washedAt: new Date().toISOString(),
+          note,
+        }),
+      });
+      if (!response.ok) throw new Error("Unable to record wash");
+      const saved = await response.json();
+      setWashes((current) => [saved, ...current]);
+      setTab("washes");
+    } finally {
+      setWashBusy(false);
+    }
+  }
+
+  async function stopContract() {
+    const suggested = new Date().toISOString().slice(0, 10);
+    const stopDate = window.prompt("Last active service date (YYYY-MM-DD)", suggested);
+    if (!stopDate) return;
+    const reason = window.prompt("Reason for stopping (optional)", "Customer requested stop") ?? "";
+    if (
+      !window.confirm(
+        `Stop this contract on ${stopDate} and create/adjust the prorated final bill?`,
+      )
+    )
+      return;
+    const response = await fetch(`/api/customers/${customer.id}/stop-contract`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stopDate, reason }),
+    });
+    const result = await response.json();
+    if (!response.ok) return window.alert(result.message ?? "Unable to stop contract");
+    window.alert(
+      `Final bill ${result.invoiceNumber}: AED ${Number(result.amount).toFixed(2)} (${result.usedDays}/${result.totalDays} days).`,
+    );
+    window.location.reload();
+  }
   const totals = useMemo(() => {
     const invoiced = invoices.reduce((sum, invoice) => sum + invoice.total, 0);
     const paid = invoices.reduce((sum, invoice) => sum + invoice.paidAmount, 0);
@@ -68,6 +121,14 @@ export function CustomerProfilePage({
           <button className="secondary" onClick={onEdit}>
             Edit customer
           </button>
+          <button className="secondary" disabled={washBusy} onClick={() => void recordWash()}>
+            {washBusy ? "Saving…" : "+ Record wash"}
+          </button>
+          {!customer.contractEndDate && (
+            <button className="secondary" onClick={() => void stopContract()}>
+              Stop contract
+            </button>
+          )}
           <button className="whatsapp" onClick={onWhatsApp}>
             WhatsApp
           </button>
@@ -101,7 +162,7 @@ export function CustomerProfilePage({
       </div>
 
       <div className="profile-tabs">
-        {(["overview", "invoices", "payments", "activity"] as Tab[]).map((item) => (
+        {(["overview", "washes", "invoices", "payments", "activity"] as Tab[]).map((item) => (
           <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>
             {item[0].toUpperCase() + item.slice(1)}
           </button>
@@ -132,6 +193,10 @@ export function CustomerProfilePage({
               <div>
                 <dt>Flat</dt>
                 <dd>{customer.flatNo || "—"}</dd>
+              </div>
+              <div>
+                <dt>Room</dt>
+                <dd>{customer.roomNo || "—"}</dd>
               </div>
             </dl>
           </section>
@@ -179,6 +244,17 @@ export function CustomerProfilePage({
                 <dd>{date(customer.planStartDate)}</dd>
               </div>
               <div>
+                <dt>Contract ends</dt>
+                <dd>{date(customer.contractEndDate)}</dd>
+              </div>
+              <div>
+                <dt>Wash usage</dt>
+                <dd>
+                  {washes.length} completed
+                  {customer.washesPerCycle ? ` / ${customer.washesPerCycle} included` : ""}
+                </dd>
+              </div>
+              <div>
                 <dt>Next renewal</dt>
                 <dd>{date(customer.nextInvoiceDate)}</dd>
               </div>
@@ -203,6 +279,46 @@ export function CustomerProfilePage({
             )}
           </section>
         </div>
+      )}
+
+      {tab === "washes" && (
+        <section className="panel profile-list">
+          <div className="panel-head">
+            <div>
+              <h2>Car wash history</h2>
+              <p>
+                {washes.length} wash(es) recorded
+                {customer.washesPerCycle ? ` · ${customer.washesPerCycle} included per cycle` : ""}
+              </p>
+            </div>
+            <button className="primary" disabled={washBusy} onClick={() => void recordWash()}>
+              + Record wash
+            </button>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date & time</th>
+                  <th>Vehicle</th>
+                  <th>Note</th>
+                  <th>Recorded by</th>
+                </tr>
+              </thead>
+              <tbody>
+                {washes.map((wash) => (
+                  <tr key={wash.id}>
+                    <td>{new Date(wash.washedAt).toLocaleString("en-GB")}</td>
+                    <td>{wash.plateNumber || customer.plate}</td>
+                    <td>{wash.note || "—"}</td>
+                    <td>{wash.recordedBy}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {washes.length === 0 && <div className="empty-state">No washes recorded yet.</div>}
+        </section>
       )}
 
       {tab === "invoices" && (

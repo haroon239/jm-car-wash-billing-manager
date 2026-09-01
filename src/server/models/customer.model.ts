@@ -12,11 +12,15 @@ export async function findCustomers(view: "active" | "archived" | "all") {
     await requireDatabase().query(`
     SELECT c.id, c.name, c.phone, c.email, c.created_at AS "customerSince",
       c.plate_number AS "plateNumber",
-      c.building_no AS "buildingNo",c.flat_no AS "flatNo",c.parking_no AS "parkingNo",
+      c.building_no AS "buildingNo",c.flat_no AS "flatNo",c.room_no AS "roomNo",
+      c.parking_no AS "parkingNo",
       c.area_id AS "areaId",c.building_id AS "buildingId",
       a.name AS "areaName",b.name AS "buildingName",prop.name AS "propertyName",
       COALESCE(vehicle_rows.vehicles,'[]'::JSON) AS vehicles,
-      c.plan_start_date AS "planStartDate", c.status, c.deleted_at AS "archivedAt",
+      c.plan_start_date AS "planStartDate",c.contract_end_date AS "contractEndDate",
+      c.washes_per_cycle AS "washesPerCycle",
+      COALESCE(wash_totals.completed,0) AS "washesCompleted",
+      c.status, c.deleted_at AS "archivedAt",
       p.name AS plan, c.agreed_price AS price, c.billing_type AS "billingType",
       c.auto_invoice AS "autoInvoice", c.next_invoice_date AS "nextInvoiceDate",
       current_invoice.status AS "invoiceStatus",
@@ -35,6 +39,13 @@ export async function findCustomers(view: "active" | "archived" | "all") {
       ) AS vehicles
       FROM vehicles v WHERE v.customer_id=c.id
     ) vehicle_rows ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT COUNT(*)::INTEGER AS completed
+      FROM wash_records wr
+      WHERE wr.customer_id=c.id
+        AND wr.washed_at::DATE >= c.plan_start_date
+        AND (c.next_invoice_date IS NULL OR wr.washed_at::DATE < c.next_invoice_date)
+    ) wash_totals ON TRUE
     LEFT JOIN LATERAL (
       SELECT i.status, i.due_date
       FROM invoices i
@@ -71,9 +82,12 @@ export async function createCustomer(input: CustomerInput) {
     nextInvoiceDate,
     buildingNo,
     flatNo,
+    roomNo,
     parkingNo,
     areaId,
     buildingId,
+    contractEndDate,
+    washesPerCycle,
     vehicles,
   } = input;
   const client = await requireDatabase().connect();
@@ -89,10 +103,10 @@ export async function createCustomer(input: CustomerInput) {
       `INSERT INTO customers (
         name,phone,email,plate_number,plan_id,plan_start_date,agreed_price,
         billing_type,auto_invoice,next_invoice_date,building_no,flat_no,parking_no,
-        area_id,building_id
+        area_id,building_id,room_no,contract_end_date,washes_per_cycle
       ) VALUES (
         $1,$2,NULLIF($3,''),$4,$5,$6,$7,$8,$9,$10,
-        NULLIF($11,''),NULLIF($12,''),NULLIF($13,''),$14,$15
+        NULLIF($11,''),NULLIF($12,''),NULLIF($13,''),$14,$15,NULLIF($16,''),$17,$18
       ) RETURNING *`,
       [
         name,
@@ -110,6 +124,9 @@ export async function createCustomer(input: CustomerInput) {
         parkingNo,
         areaId,
         buildingId,
+        roomNo,
+        contractEndDate,
+        washesPerCycle,
       ],
     );
     const customerId = Number(result.rows[0].id);
@@ -144,9 +161,12 @@ export async function updateCustomer(id: number, input: CustomerInput) {
     nextInvoiceDate,
     buildingNo,
     flatNo,
+    roomNo,
     parkingNo,
     areaId,
     buildingId,
+    contractEndDate,
+    washesPerCycle,
     vehicles,
   } = input;
   const client = await requireDatabase().connect();
@@ -162,8 +182,9 @@ export async function updateCustomer(id: number, input: CustomerInput) {
       `UPDATE customers SET name=$1,phone=$2,email=NULLIF($3,''),plate_number=$4,plan_id=$5,
        plan_start_date=$6,agreed_price=$7,billing_type=$8,auto_invoice=$9,
        next_invoice_date=$10,building_no=NULLIF($11,''),flat_no=NULLIF($12,''),
-       parking_no=NULLIF($13,''),area_id=$14,building_id=$15,updated_at=NOW()
-       WHERE id=$16 AND deleted_at IS NULL RETURNING *`,
+       parking_no=NULLIF($13,''),area_id=$14,building_id=$15,room_no=NULLIF($16,''),
+       contract_end_date=$17,washes_per_cycle=$18,updated_at=NOW()
+       WHERE id=$19 AND deleted_at IS NULL RETURNING *`,
       [
         name,
         phone,
@@ -180,6 +201,9 @@ export async function updateCustomer(id: number, input: CustomerInput) {
         parkingNo,
         areaId,
         buildingId,
+        roomNo,
+        contractEndDate,
+        washesPerCycle,
         id,
       ],
     );

@@ -5,6 +5,7 @@ export type Customer = {
   plate: string;
   buildingNo: string;
   flatNo: string;
+  roomNo: string;
   parkingNo: string;
   propertyName?: string;
   areaId?: number;
@@ -17,6 +18,9 @@ export type Customer = {
   amount: number;
   due: string;
   planStartDate: string;
+  contractEndDate: string | null;
+  washesPerCycle: number | null;
+  washesCompleted?: number;
   billingType: "monthly" | "weekly" | "one_time" | "manual";
   autoInvoice: boolean;
   nextInvoiceDate: string;
@@ -30,9 +34,12 @@ export type CustomerForm = Pick<
   | "plate"
   | "buildingNo"
   | "flatNo"
+  | "roomNo"
   | "parkingNo"
   | "plan"
   | "planStartDate"
+  | "contractEndDate"
+  | "washesPerCycle"
   | "amount"
   | "billingType"
   | "autoInvoice"
@@ -103,6 +110,15 @@ export type CustomerActivity = {
   details?: string | null;
   actor: string;
   createdAt: string;
+};
+export type WashRecord = {
+  id: number;
+  customerId: number;
+  vehicleId?: number | null;
+  plateNumber?: string | null;
+  washedAt: string;
+  note?: string | null;
+  recordedBy: string;
 };
 export type Section =
   | "overview"
