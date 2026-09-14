@@ -460,6 +460,37 @@ td small {
   font-size: 10px;
   font-weight: 700;
   cursor: pointer;
+  animation: reminder-wiggle 4s ease-in-out infinite;
+  transform-origin: center;
+}
+.reminder-button:hover,
+.reminder-button:focus-visible,
+.reminder-button:disabled {
+  animation: none;
+}
+@keyframes reminder-wiggle {
+  0%,
+  80%,
+  100% {
+    transform: translateX(0) rotate(0);
+  }
+  84% {
+    transform: translateX(-2px) rotate(-1deg);
+  }
+  88% {
+    transform: translateX(2px) rotate(1deg);
+  }
+  92% {
+    transform: translateX(-2px) rotate(-1deg);
+  }
+  96% {
+    transform: translateX(2px) rotate(1deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reminder-button {
+    animation: none;
+  }
 }
 .reminder-button:hover:not(:disabled) {
   background: #ffe6aa;
