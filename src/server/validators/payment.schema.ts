@@ -2,7 +2,14 @@ import { z } from "zod";
 
 export const paymentSchema = z.object({
   invoiceId: z.coerce.number().int().positive(),
-  amount: z.coerce.number().positive().max(9999999),
+  amount: z.coerce
+    .number()
+    .min(0.01)
+    .max(9999999)
+    .refine(
+      (amount) => Math.abs(amount * 100 - Math.round(amount * 100)) < 0.000001,
+      "Enter a payment amount with at most two decimal places.",
+    ),
   method: z.enum(["cash", "online"]),
   reference: z.string().trim().max(100).optional().default(""),
   note: z.string().trim().max(300).optional().default(""),

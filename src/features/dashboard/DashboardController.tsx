@@ -5,6 +5,7 @@ import { Sidebar } from "../../components/layout/Sidebar";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Notice, type NoticeKind } from "../../components/common/Notice";
 import { PaymentReminder } from "../../components/common/PaymentReminder";
+import { PaymentReceipt } from "../../components/common/PaymentReceipt";
 import { InvoicesPage } from "../../views/InvoicesPage";
 import { CustomerProfilePage } from "../../views/CustomerProfilePage";
 import { PaymentsPage } from "../../views/PaymentsPage";
@@ -187,6 +188,16 @@ export function DashboardController() {
     applyToFuture: false,
   });
   const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
+  const [receivedPayment, setReceivedPayment] = useState<{
+    customerName: string;
+    phone: string;
+    paymentGroup: string;
+    amount: number;
+    balance: number;
+    method: string;
+    paidAt: string;
+    allocations: { invoiceNumber: string; amount: number; balance: number }[];
+  } | null>(null);
   const [paymentForm, setPaymentForm] = useState({
     amount: "",
     method: "cash",
@@ -833,20 +844,33 @@ export function DashboardController() {
   function recordPayment(invoice: Invoice) {
     setPaymentInvoice(invoice);
     setPaymentForm({
-      amount: invoice.balance.toFixed(2),
+      amount: (invoice.balance + previousBalance(invoice)).toFixed(2),
       method: "cash",
       reference: "",
       note: "",
     });
   }
 
+  function previousBalance(invoice: Invoice) {
+    return invoices
+      .filter(
+        (bill) =>
+          bill.customerId === invoice.customerId &&
+          (bill.billingPeriodStart.slice(0, 10) < invoice.billingPeriodStart.slice(0, 10) ||
+            (bill.billingPeriodStart.slice(0, 10) === invoice.billingPeriodStart.slice(0, 10) &&
+              bill.id < invoice.id)),
+      )
+      .reduce((sum, bill) => sum + bill.balance, 0);
+  }
+
   async function submitPayment(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!paymentInvoice) return;
     const amount = Number(paymentForm.amount);
-    if (!Number.isFinite(amount) || amount <= 0 || amount > paymentInvoice.balance) {
+    const paymentLimit = paymentInvoice.balance + previousBalance(paymentInvoice);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > paymentLimit + 0.001) {
       return setNotice(
-        `Enter an amount between AED 0.01 and AED ${paymentInvoice.balance.toFixed(2)}.`,
+        `Enter an amount between AED 0.01 and AED ${paymentLimit.toFixed(2)}.`,
         "error",
       );
     }
@@ -866,42 +890,46 @@ export function DashboardController() {
       if (!response.ok)
         throw new Error((await response.json()).message ?? "Unable to record payment");
       const row = await response.json();
-      const payment: Payment = {
-        ...row,
-        id: Number(row.id),
-        invoiceId: Number(row.invoiceId),
-        amount: Number(row.amount),
-        note: row.note ? String(row.note) : null,
-        invoiceNumber: paymentInvoice.invoiceNumber,
+      const recordedPayments = row.payments.map((payment: Payment) => ({
+        ...payment,
+        id: Number(payment.id),
+        invoiceId: Number(payment.invoiceId),
+        amount: Number(payment.amount),
         customerName: paymentInvoice.customerName,
-      };
-      setPayments((current) => [payment, ...current]);
-      const nextInvoice = {
-        ...paymentInvoice,
-        status: String(row.invoiceStatus),
-        paidAmount: Number(row.paidAmount),
-        balance: Number(row.balance),
-        customerNote: String(row.customerNote ?? paymentInvoice.customerNote),
-      };
-      setInvoices((current) =>
-        current.map((item) => (item.id === paymentInvoice.id ? nextInvoice : item)),
-      );
-      if (activeInvoice?.id === paymentInvoice.id) setActiveInvoice(nextInvoice);
-      setCustomers((current) =>
-        current.map((customer) =>
-          customer.id === paymentInvoice.customerId
-            ? {
-                ...customer,
-                status: normalizeInvoiceStatus(String(row.invoiceStatus)),
-              }
-            : customer,
+      }));
+      setPayments((current) => [...recordedPayments, ...current]);
+      const updates = new Map<number, { status: string; paidAmount: number; balance: number }>(
+        row.allocations.map(
+          (allocation: {
+            invoiceId: number;
+            status: string;
+            paidAmount: number;
+            balance: number;
+          }) => [Number(allocation.invoiceId), allocation],
         ),
       );
+      setInvoices((current) =>
+        current.map((invoice) =>
+          updates.has(invoice.id) ? { ...invoice, ...updates.get(invoice.id)! } : invoice,
+        ),
+      );
+      if (activeInvoice && updates.has(activeInvoice.id))
+        setActiveInvoice({ ...activeInvoice, ...updates.get(activeInvoice.id)! });
+      setReceivedPayment({
+        customerName: paymentInvoice.customerName,
+        phone: customers.find((customer) => customer.id === paymentInvoice.customerId)?.phone ?? "",
+        paymentGroup: row.paymentGroup,
+        amount,
+        balance: Number(row.balance),
+        method: paymentForm.method,
+        paidAt: recordedPayments[0]?.paidAt ?? new Date().toISOString(),
+        allocations: row.allocations,
+      });
       await reloadLocations();
       setPaymentInvoice(null);
       setNotice(
         Number(row.balance) <= 0
-          ? `${paymentInvoice.invoiceNumber} is fully paid.`
+          ? "Payment received. Previous and current balances are cleared."
           : `AED ${amount.toFixed(2)} recorded. Remaining balance AED ${Number(row.balance).toFixed(2)}.`,
       );
     } catch (error) {
@@ -2495,6 +2523,9 @@ export function DashboardController() {
         </div>
       )}
 
+      {receivedPayment && (
+        <PaymentReceipt receipt={receivedPayment} onClose={() => setReceivedPayment(null)} />
+      )}
       {paymentInvoice && (
         <div className="modal-backdrop" onMouseDown={() => setPaymentInvoice(null)}>
           <section className="customer-modal" onMouseDown={(event) => event.stopPropagation()}>
@@ -2506,6 +2537,14 @@ export function DashboardController() {
                   Total AED {paymentInvoice.total.toFixed(2)} · Received AED{" "}
                   {paymentInvoice.paidAmount.toFixed(2)} · Balance AED{" "}
                   {paymentInvoice.balance.toFixed(2)}
+                  {previousBalance(paymentInvoice) > 0 && (
+                    <>
+                      {" "}
+                      · Previous balance AED {previousBalance(paymentInvoice).toFixed(2)} · Total
+                      payable AED{" "}
+                      {(paymentInvoice.balance + previousBalance(paymentInvoice)).toFixed(2)}
+                    </>
+                  )}
                 </p>
               </div>
               <button onClick={() => setPaymentInvoice(null)}>×</button>
@@ -2517,7 +2556,7 @@ export function DashboardController() {
                   required
                   type="number"
                   min="0.01"
-                  max={paymentInvoice.balance}
+                  max={paymentInvoice.balance + previousBalance(paymentInvoice)}
                   step="0.01"
                   value={paymentForm.amount}
                   onChange={(event) =>
@@ -2686,6 +2725,12 @@ export function DashboardController() {
                 </tbody>
               </table>
               <div className="totals">
+                {activeInvoice && previousBalance(activeInvoice) > 0 && (
+                  <p>
+                    <span>Previous unpaid balance</span>
+                    <b>AED {previousBalance(activeInvoice).toFixed(2)}</b>
+                  </p>
+                )}
                 {(activeInvoice?.paidAmount ?? 0) > 0 && (
                   <p>
                     <span>Paid</span>
@@ -2694,11 +2739,18 @@ export function DashboardController() {
                 )}
                 <p className="total">
                   <span>
-                    {(activeInvoice?.paidAmount ?? 0) > 0 ? "Remaining balance" : "Total due"}
+                    {activeInvoice && previousBalance(activeInvoice) > 0
+                      ? "Total payable (including previous balance)"
+                      : (activeInvoice?.paidAmount ?? 0) > 0
+                        ? "Remaining balance"
+                        : "Total due"}
                   </span>
                   <b>
                     AED{" "}
-                    {(activeInvoice?.balance ?? activeInvoice?.total ?? active.amount).toFixed(2)}
+                    {(
+                      (activeInvoice?.balance ?? activeInvoice?.total ?? active.amount) +
+                      (activeInvoice ? previousBalance(activeInvoice) : 0)
+                    ).toFixed(2)}
                   </b>
                 </p>
               </div>

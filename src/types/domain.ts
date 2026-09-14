@@ -94,6 +94,7 @@ export type Invoice = {
   revisionNumber: number;
 };
 export type Payment = {
+  paymentGroup?: string | null;
   id: number;
   invoiceId: number;
   invoiceNumber: string;

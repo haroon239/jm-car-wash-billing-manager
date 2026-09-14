@@ -13,14 +13,26 @@ export function PaymentsPage({
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 25;
+  const groupedPayments = useMemo(() => {
+    const groups = new Map<string, Payment>();
+    for (const payment of payments) {
+      const key = payment.paymentGroup || `legacy-${payment.id}`;
+      const existing = groups.get(key);
+      if (existing) {
+        existing.amount += payment.amount;
+        existing.invoiceNumber += ` · ${payment.invoiceNumber}`;
+      } else groups.set(key, { ...payment });
+    }
+    return [...groups.values()];
+  }, [payments]);
   const filteredPayments = useMemo(
     () =>
-      payments.filter((payment) =>
+      groupedPayments.filter((payment) =>
         `${payment.customerName} ${payment.invoiceNumber} ${payment.reference ?? ""}`
           .toLowerCase()
           .includes(query.toLowerCase()),
       ),
-    [payments, query],
+    [groupedPayments, query],
   );
   const totalPages = Math.max(1, Math.ceil(filteredPayments.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -32,7 +44,7 @@ export function PaymentsPage({
         <article>
           <small>COLLECTED</small>
           <strong>AED {payments.reduce((s, p) => s + p.amount, 0).toFixed(2)}</strong>
-          <p>{payments.length} recorded payments</p>
+          <p>{groupedPayments.length} recorded payments</p>
         </article>
         <article>
           <small>AWAITING PAYMENT</small>
