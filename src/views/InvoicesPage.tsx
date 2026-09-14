@@ -121,7 +121,7 @@ export function InvoicesPage({
         </select>
       </div>
       <div className="table-wrap">
-        <table>
+        <table className="invoice-table">
           <thead>
             <tr>
               <th>Invoice</th>

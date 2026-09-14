@@ -439,14 +439,37 @@ td small {
   border-radius: 2px;
 }
 .payment-reminder-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  justify-items: start;
   gap: 8px;
-  max-width: 300px;
+  width: 100%;
+  min-width: 0;
 }
 .payment-reminder-actions small {
-  flex-basis: 100%;
+  margin: 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.row-actions:has(> .payment-reminder-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  width: 270px;
+  max-width: 100%;
+  gap: 8px;
+}
+.row-actions > .payment-reminder-actions {
+  order: 2;
+  flex: 0 0 100%;
+  padding-top: 8px;
+  border-top: 1px solid #e4eded;
+}
+.invoice-table th:first-child,
+.invoice-table td:first-child > strong {
+  white-space: nowrap;
+}
+.invoice-table {
+  min-width: 950px;
 }
 .customer-profile {
   display: grid;
