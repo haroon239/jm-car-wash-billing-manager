@@ -450,6 +450,28 @@ td small {
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
+.reminder-button {
+  border: 1px solid #b45309;
+  border-radius: 7px;
+  padding: 8px 12px;
+  background: #fff3d6;
+  color: #854009;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.reminder-button:hover:not(:disabled) {
+  background: #ffe6aa;
+}
+.reminder-button:focus-visible {
+  outline: 2px solid #b45309;
+  outline-offset: 3px;
+}
+.reminder-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 .row-actions:has(> .payment-reminder-actions) {
   display: flex;
   flex-wrap: wrap;

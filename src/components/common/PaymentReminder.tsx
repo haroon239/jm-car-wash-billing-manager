@@ -45,7 +45,7 @@ export function PaymentReminder({
       {invoice.balance > 0 && (
         <button
           type="button"
-          className="send-button"
+          className="reminder-button"
           disabled={!number || busy}
           onClick={() => {
             window.open(
