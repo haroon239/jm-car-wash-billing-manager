@@ -34,7 +34,10 @@ export function PaymentReceipt({
       pdf.save(fileName);
       if (share) {
         setPrepared(true);
-        if (!chat) setError("Your browser blocked WhatsApp. Use Open customer chat below.");
+        if (!chat)
+          setError(
+            "Your browser blocked WhatsApp. Allow pop-ups for this site, then click Share on WhatsApp again.",
+          );
       }
     } catch (failure) {
       if (!(failure instanceof Error && failure.name === "AbortError"))
@@ -107,13 +110,6 @@ export function PaymentReceipt({
               onClick={() => void download(true)}
             >
               {busy ? "Preparing receipt…" : "Share on WhatsApp"}
-            </button>
-            <button
-              className="whatsapp"
-              disabled={!phone || busy}
-              onClick={() => window.open(whatsappUrl, "_blank", "noopener,noreferrer")}
-            >
-              Open customer chat
             </button>
           </div>
         </div>

@@ -165,6 +165,7 @@ export function DashboardController() {
     })),
   );
   const [isSaving, setIsSaving] = useState(false);
+  const paymentRequestInFlight = useRef(false);
   const [showPlans, setShowPlans] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [planForm, setPlanForm] = useState({ name: "", price: "", washesPerMonth: "" });
@@ -865,7 +866,7 @@ export function DashboardController() {
 
   async function submitPayment(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!paymentInvoice) return;
+    if (!paymentInvoice || paymentRequestInFlight.current) return;
     const amount = Number(paymentForm.amount);
     const paymentLimit = paymentInvoice.balance + previousBalance(paymentInvoice);
     if (!Number.isFinite(amount) || amount <= 0 || amount > paymentLimit + 0.001) {
@@ -874,6 +875,7 @@ export function DashboardController() {
         "error",
       );
     }
+    paymentRequestInFlight.current = true;
     setIsSaving(true);
     try {
       const response = await fetch("/api/payments", {
@@ -925,16 +927,24 @@ export function DashboardController() {
         paidAt: recordedPayments[0]?.paidAt ?? new Date().toISOString(),
         allocations: row.allocations,
       });
-      await reloadLocations();
       setPaymentInvoice(null);
       setNotice(
         Number(row.balance) <= 0
           ? "Payment received. Previous and current balances are cleared."
           : `AED ${amount.toFixed(2)} recorded. Remaining balance AED ${Number(row.balance).toFixed(2)}.`,
       );
+      // Payment is already committed. A reporting refresh must never reopen the
+      // payment form or report a successful payment as a failed submission.
+      void reloadLocations().catch(() => {
+        setNotice(
+          "Payment saved and receipt ready. Location totals could not refresh; reload the page later. Do not record this payment again.",
+          "error",
+        );
+      });
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Unable to record payment.", "error");
     } finally {
+      paymentRequestInFlight.current = false;
       setIsSaving(false);
     }
   }
@@ -1582,17 +1592,9 @@ export function DashboardController() {
                               </button>
                               <button
                                 className="send-button"
-                                onClick={() => {
-                                  const invoice = customerActionMap.get(customer.id)?.invoice;
-                                  if (invoice) openSavedInvoice(invoice);
-                                  else void prepareInvoice(customer);
-                                }}
+                                onClick={() => void openCustomerProfile(customer)}
                               >
-                                {customerActionMap.get(customer.id)?.invoice
-                                  ? "View invoice"
-                                  : customerActionMap.get(customer.id)
-                                    ? "Generate invoice"
-                                    : "Invoice"}
+                                Open profile
                               </button>
                             </>
                           )}

@@ -8,7 +8,6 @@ type Props = {
   onView: (v: CustomerView) => void;
   onQuery: (q: string) => void;
   onEdit: (c: Customer) => void;
-  onInvoice: (c: Customer) => void;
   onRestore: (c: Customer) => void;
   onCustomer: (c: Customer) => void;
 };
@@ -128,8 +127,8 @@ export function CustomersPage(p: Props) {
                         <button className="edit-button" onClick={() => p.onEdit(c)}>
                           Edit
                         </button>
-                        <button className="send-button" onClick={() => p.onInvoice(c)}>
-                          Invoice
+                        <button className="send-button" onClick={() => p.onCustomer(c)}>
+                          Open profile
                         </button>
                       </>
                     )}
