@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Invoice } from "../../types/domain";
+import { canSendPaymentReminder } from "../../utils/reminderEligibility";
 
 export const paymentReminderMessage =
   "Dear Valued Customer\nThis is friendly reminder that Your Car wash payment  is now due . kindly arrange the payment at your earliest convenience Thank you";
@@ -18,7 +19,7 @@ export function PaymentReminder({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => setSentAt(invoice.reminderSentAt ?? null), [invoice.reminderSentAt]);
-  if (!["overdue", "partially_overdue"].includes(invoice.status) && !sentAt) return null;
+  if (!canSendPaymentReminder(invoice) && !sentAt) return null;
   const number = (phone ?? invoice.phone ?? "").replace(/\D/g, "");
   async function mark(sent: boolean) {
     setBusy(true);

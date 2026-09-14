@@ -12,14 +12,17 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       await client.query("BEGIN");
       const result = await client.query(
         `UPDATE invoices SET reminder_sent_at=CASE WHEN $2 THEN NOW() ELSE NULL END
-         WHERE id=$1 AND (NOT $2 OR status IN ('overdue','partially_overdue'))
+         WHERE id=$1 AND (NOT $2 OR (due_date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Dubai')::DATE AND total > COALESCE((SELECT SUM(amount) FROM payments WHERE invoice_id=invoices.id),0)))
          RETURNING customer_id,reminder_sent_at AS "reminderSentAt"`,
         [id, sent],
       );
       if (!result.rowCount)
-        throw Object.assign(new Error("Only overdue invoices can be marked reminder sent."), {
-          status: 409,
-        });
+        throw Object.assign(
+          new Error("Only unpaid bills due today or earlier can be marked reminder sent."),
+          {
+            status: 409,
+          },
+        );
       await client.query(
         `INSERT INTO customer_activities(customer_id,activity_type,title,details)
          VALUES($1,'payment_reminder',$2,$3)`,

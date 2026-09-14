@@ -6,6 +6,7 @@ import { PageHeader } from "../../components/layout/PageHeader";
 import { Notice, type NoticeKind } from "../../components/common/Notice";
 import { PaymentReminder } from "../../components/common/PaymentReminder";
 import { PaymentReceipt } from "../../components/common/PaymentReceipt";
+import { canSendPaymentReminder } from "../../utils/reminderEligibility";
 import { InvoicesPage } from "../../views/InvoicesPage";
 import { CustomerProfilePage } from "../../views/CustomerProfilePage";
 import { PaymentsPage } from "../../views/PaymentsPage";
@@ -166,6 +167,7 @@ export function DashboardController() {
   );
   const [isSaving, setIsSaving] = useState(false);
   const [customerFormError, setCustomerFormError] = useState("");
+  const [dataRevision, setDataRevision] = useState(0);
   const paymentRequestInFlight = useRef(false);
   const [showPlans, setShowPlans] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
@@ -394,7 +396,7 @@ export function DashboardController() {
       }
     }
     void loadDatabaseData();
-  }, []);
+  }, [dataRevision]);
 
   function setNotice(message: string, kind: NoticeKind = "success") {
     setNoticeState({ message, kind });
@@ -528,7 +530,8 @@ export function DashboardController() {
         } else if (customer.nextInvoiceDate) {
           const days = daysFromDubaiToday(customer.nextInvoiceDate);
           if (days < 0) action = { kind: "expired", label: "Billing date passed" };
-          else if (days === 0) action = { kind: "expires-today", label: "Billing due today" };
+          else if (days === 0)
+            action = { kind: "expires-today", label: "Bill generation due today" };
           else if (days <= 3)
             action = {
               kind: "expiring",
@@ -1189,9 +1192,18 @@ export function DashboardController() {
           ? current.map((customer) => (customer.id === editing.id ? record : customer))
           : [record, ...current],
       );
-      await reloadLocations();
-      setNotice(`${customerForm.name} ${editing ? "updated" : "added"} successfully.`);
+      setNotice(
+        saved.billingWarning ||
+          `${customerForm.name} ${editing ? "updated" : "added"} successfully.`,
+      );
       setShowCustomerForm(false);
+      setDataRevision((value) => value + 1);
+      void reloadLocations().catch(() =>
+        setNotice(
+          "Customer saved. Refresh to update location totals; do not add this customer again.",
+          "error",
+        ),
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to save customer.";
       setCustomerFormError(message);
@@ -1876,9 +1888,7 @@ export function DashboardController() {
                               Edit
                             </button>
                             {customerActionMap.get(customer.id)?.invoice &&
-                            ["overdue", "partially_overdue"].includes(
-                              customerActionMap.get(customer.id)!.invoice!.status,
-                            ) ? (
+                            canSendPaymentReminder(customerActionMap.get(customer.id)!.invoice!) ? (
                               <PaymentReminder
                                 invoice={customerActionMap.get(customer.id)!.invoice!}
                                 phone={customer.phone}
@@ -1894,7 +1904,7 @@ export function DashboardController() {
                                 }}
                               >
                                 {customerActionMap.get(customer.id)?.invoice
-                                  ? "View & send"
+                                  ? "View bill"
                                   : "Generate invoice"}
                               </button>
                             )}

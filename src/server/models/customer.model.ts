@@ -118,7 +118,9 @@ export async function createCustomer(input: CustomerInput) {
         agreedPrice,
         billingType,
         autoInvoice,
-        nextInvoiceDate,
+        autoInvoice && (billingType === "monthly" || billingType === "weekly")
+          ? planStartDate
+          : nextInvoiceDate,
         buildingNo,
         flatNo,
         parkingNo,
