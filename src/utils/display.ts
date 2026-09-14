@@ -17,6 +17,7 @@ export function formatBillingType(type: string) {
     one_time: "One-time",
     manual: "Manual",
     cash: "Cash",
+    online: "Online",
     card: "Card",
     bank_transfer: "Bank transfer",
     other: "Other",

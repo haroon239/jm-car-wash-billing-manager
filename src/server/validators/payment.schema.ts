@@ -3,7 +3,7 @@ import { z } from "zod";
 export const paymentSchema = z.object({
   invoiceId: z.coerce.number().int().positive(),
   amount: z.coerce.number().positive().max(9999999),
-  method: z.enum(["cash", "card", "bank_transfer", "other"]),
+  method: z.enum(["cash", "online"]),
   reference: z.string().trim().max(100).optional().default(""),
   note: z.string().trim().max(300).optional().default(""),
 });

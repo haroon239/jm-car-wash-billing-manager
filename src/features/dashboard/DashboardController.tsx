@@ -2513,9 +2513,7 @@ export function DashboardController() {
                   }
                 >
                   <option value="cash">Cash</option>
-                  <option value="card">Card</option>
-                  <option value="bank_transfer">Bank transfer</option>
-                  <option value="other">Other</option>
+                  <option value="online">Online</option>
                 </select>
               </label>
               <label>
