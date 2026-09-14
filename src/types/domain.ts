@@ -76,6 +76,8 @@ export type Invoice = {
   invoiceNumber: string;
   customerId: number;
   customerName: string;
+  phone?: string;
+  reminderSentAt?: string | null;
   plateNumber: string;
   planName: string;
   total: number;

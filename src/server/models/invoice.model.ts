@@ -6,7 +6,7 @@ const uaeToday = "(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Dubai')::DATE";
 const invoiceFields = `i.id,i.invoice_number AS "invoiceNumber",
   i.customer_id AS "customerId",i.subtotal,i.vat_amount AS "vatAmount",i.total,
   i.status,i.issue_date AS "issueDate",i.due_date AS "dueDate",i.sent_at AS "sentAt",
-  i.billing_period AS "billingPeriodStart",
+  i.billing_period AS "billingPeriodStart",i.reminder_sent_at AS "reminderSentAt",
   i.description,i.customer_note AS "customerNote",
   COALESCE((SELECT SUM(pay.amount) FROM payments pay WHERE pay.invoice_id=i.id),0) AS "paidAmount",
   GREATEST(i.total-COALESCE((SELECT SUM(pay.amount) FROM payments pay WHERE pay.invoice_id=i.id),0),0) AS balance,

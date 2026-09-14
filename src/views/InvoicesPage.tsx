@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Invoice } from "../types/domain";
 import { formatInvoiceStatus } from "../utils/display";
+import { PaymentReminder } from "../components/common/PaymentReminder";
 export function InvoicesPage({
   refreshKey,
   areaId,
@@ -164,6 +165,7 @@ export function InvoicesPage({
                   </td>
                   <td>
                     <div className="row-actions">
+                      <PaymentReminder key={`${i.id}:${i.reminderSentAt ?? ""}`} invoice={i} />
                       <button className="send-button" onClick={() => onView(i)}>
                         View PDF
                       </button>

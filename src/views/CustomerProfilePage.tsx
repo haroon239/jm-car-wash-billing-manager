@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PaymentReminder } from "../components/common/PaymentReminder";
 import type { Customer, CustomerActivity, Invoice, Payment, WashRecord } from "../types/domain";
 
 type Tab = "overview" | "washes" | "invoices" | "payments" | "activity";
@@ -359,6 +360,7 @@ export function CustomerProfilePage({
                     </td>
                     <td>
                       <div className="row-actions">
+                        <PaymentReminder invoice={invoice} phone={customer.phone} />
                         <button className="send-button" onClick={() => onViewInvoice(invoice)}>
                           View
                         </button>

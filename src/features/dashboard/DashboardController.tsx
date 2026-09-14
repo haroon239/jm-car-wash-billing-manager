@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Notice, type NoticeKind } from "../../components/common/Notice";
+import { PaymentReminder } from "../../components/common/PaymentReminder";
 import { InvoicesPage } from "../../views/InvoicesPage";
 import { CustomerProfilePage } from "../../views/CustomerProfilePage";
 import { PaymentsPage } from "../../views/PaymentsPage";
@@ -1830,18 +1831,28 @@ export function DashboardController() {
                             >
                               Edit
                             </button>
-                            <button
-                              className="send-button"
-                              onClick={() => {
-                                const invoice = customerActionMap.get(customer.id)?.invoice;
-                                if (invoice) openSavedInvoice(invoice);
-                                else void prepareInvoice(customer);
-                              }}
-                            >
-                              {customerActionMap.get(customer.id)?.invoice
-                                ? "View & send"
-                                : "Generate invoice"}
-                            </button>
+                            {customerActionMap.get(customer.id)?.invoice &&
+                            ["overdue", "partially_overdue"].includes(
+                              customerActionMap.get(customer.id)!.invoice!.status,
+                            ) ? (
+                              <PaymentReminder
+                                invoice={customerActionMap.get(customer.id)!.invoice!}
+                                phone={customer.phone}
+                              />
+                            ) : (
+                              <button
+                                className="send-button"
+                                onClick={() => {
+                                  const invoice = customerActionMap.get(customer.id)?.invoice;
+                                  if (invoice) openSavedInvoice(invoice);
+                                  else void prepareInvoice(customer);
+                                }}
+                              >
+                                {customerActionMap.get(customer.id)?.invoice
+                                  ? "View & send"
+                                  : "Generate invoice"}
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
