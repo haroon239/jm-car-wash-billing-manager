@@ -8,10 +8,10 @@ type Props = {
 };
 const items: [Section, string, string][] = [
   ["overview", "⌂", "Overview"],
-  ["locations", "▦", "Locations"],
   ["customers", "♙", "Customers"],
-  ["plans", "◇", "Plans"],
   ["invoices", "▤", "Payments due"],
+  ["locations", "▦", "Locations"],
+  ["plans", "◇", "Plans"],
   ["payments", "◷", "Payment history"],
   ["reports", "▥", "Reports & export"],
   ["settings", "⚙", "Settings"],
