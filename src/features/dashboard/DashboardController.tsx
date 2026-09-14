@@ -2627,9 +2627,9 @@ export function DashboardController() {
           <section className="invoice-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="modal-head">
               <div>
-                <span className="ready">READY TO SEND</span>
+                <span className="ready">INTERNAL BILLING RECORD</span>
                 <h2>Invoice {activeInvoice?.invoiceNumber}</h2>
-                <p>Review the invoice before sharing it with the customer.</p>
+                <p>Charges and billing history. Send a payment receipt after receiving payment.</p>
               </div>
               <button
                 onClick={() => {
@@ -2765,40 +2765,6 @@ export function DashboardController() {
                   <strong>NOTE</strong>
                   <p>{activeInvoice.customerNote}</p>
                 </div>
-              )}
-            </div>
-            <div className="send-steps">
-              <p>
-                <span>1</span>
-                <b>Share invoice PDF</b>
-                <small>Generate the PDF securely</small>
-              </p>
-              <p>
-                <span>2</span>
-                <b>Select WhatsApp</b>
-                <small>Choose it from the share menu</small>
-              </p>
-              <p>
-                <span>3</span>
-                <b>Confirm delivery</b>
-                <small>Then mark the invoice as sent</small>
-              </p>
-            </div>
-            <div className="modal-actions">
-              <button
-                className="secondary"
-                disabled={isSaving}
-                onClick={() => void shareInvoice(active)}
-              >
-                {isSaving ? "Preparing PDF..." : "Share invoice PDF"}
-              </button>
-              <button className="whatsapp" onClick={() => openWhatsApp(active)}>
-                Open in WhatsApp ↗
-              </button>
-              {activeInvoice?.status.toLowerCase() !== "paid" && (
-                <button className="primary" onClick={() => void toggleSent(active)}>
-                  {activeInvoice?.sentAt ? "Mark as unsent" : "✓ Mark as sent"}
-                </button>
               )}
             </div>
           </section>
