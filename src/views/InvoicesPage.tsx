@@ -9,6 +9,7 @@ export function InvoicesPage({
   onPaid,
   onEdit,
   onCustomer,
+  onReminderChange,
 }: {
   refreshKey: string;
   areaId: number | null;
@@ -16,6 +17,7 @@ export function InvoicesPage({
   onPaid: (i: Invoice) => void;
   onEdit: (i: Invoice) => void;
   onCustomer: (customerId: number) => void;
+  onReminderChange: (invoiceId: number, sentAt: string | null) => void;
 }) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [page, setPage] = useState(1);
@@ -166,7 +168,17 @@ export function InvoicesPage({
                   </td>
                   <td>
                     <div className="row-actions">
-                      <PaymentReminder key={`${i.id}:${i.reminderSentAt ?? ""}`} invoice={i} />
+                      <PaymentReminder
+                        invoice={i}
+                        onChange={(id, sentAt) => {
+                          setInvoices((records) =>
+                            records.map((record) =>
+                              record.id === id ? { ...record, reminderSentAt: sentAt } : record,
+                            ),
+                          );
+                          onReminderChange(id, sentAt);
+                        }}
+                      />
                       {i.status !== "paid" && (
                         <button className="edit-button" onClick={() => onEdit(i)}>
                           Edit

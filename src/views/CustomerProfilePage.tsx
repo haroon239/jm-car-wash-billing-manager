@@ -15,6 +15,7 @@ type Props = {
   onWhatsApp: () => void;
   onViewInvoice: (invoice: Invoice) => void;
   onMarkPaid: (invoice: Invoice) => void;
+  onReminderChange: (invoiceId: number, sentAt: string | null) => void;
 };
 
 const money = (value: number) => `AED ${value.toFixed(2)}`;
@@ -31,6 +32,7 @@ export function CustomerProfilePage({
   onWhatsApp,
   onViewInvoice,
   onMarkPaid,
+  onReminderChange,
 }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
   const [washes, setWashes] = useState<WashRecord[]>([]);
@@ -360,7 +362,11 @@ export function CustomerProfilePage({
                     </td>
                     <td>
                       <div className="row-actions">
-                        <PaymentReminder invoice={invoice} phone={customer.phone} />
+                        <PaymentReminder
+                          invoice={invoice}
+                          phone={customer.phone}
+                          onChange={onReminderChange}
+                        />
                         <button className="send-button" onClick={() => onViewInvoice(invoice)}>
                           View
                         </button>

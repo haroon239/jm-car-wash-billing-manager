@@ -1,14 +1,23 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Invoice } from "../../types/domain";
 
 export const paymentReminderMessage =
   "Dear Valued Customer\nThis is friendly reminder that Your Car wash payment  is now due . kindly arrange the payment at your earliest convenience Thank you";
 
-export function PaymentReminder({ invoice, phone }: { invoice: Invoice; phone?: string }) {
+export function PaymentReminder({
+  invoice,
+  phone,
+  onChange,
+}: {
+  invoice: Invoice;
+  phone?: string;
+  onChange?: (invoiceId: number, sentAt: string | null) => void;
+}) {
   const [sentAt, setSentAt] = useState(invoice.reminderSentAt ?? null);
   const [opened, setOpened] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => setSentAt(invoice.reminderSentAt ?? null), [invoice.reminderSentAt]);
   if (!["overdue", "partially_overdue"].includes(invoice.status) && !sentAt) return null;
   const number = (phone ?? invoice.phone ?? "").replace(/\D/g, "");
   async function mark(sent: boolean) {
@@ -23,6 +32,7 @@ export function PaymentReminder({ invoice, phone }: { invoice: Invoice; phone?: 
       const result = await response.json();
       if (!response.ok) throw new Error(result.message ?? "Unable to save reminder status.");
       setSentAt(result.reminderSentAt);
+      onChange?.(invoice.id, result.reminderSentAt);
       setOpened(false);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Please try again.");

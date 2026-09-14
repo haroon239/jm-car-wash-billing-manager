@@ -415,6 +415,14 @@ export function DashboardController() {
     else setNotice("This customer profile is unavailable. Please refresh and try again.", "error");
   }
 
+  function updateReminderStatus(invoiceId: number, sentAt: string | null) {
+    setInvoices((records) =>
+      records.map((invoice) =>
+        invoice.id === invoiceId ? { ...invoice, reminderSentAt: sentAt } : invoice,
+      ),
+    );
+  }
+
   function openCustomerWhatsApp(customer: Customer) {
     window.open(`https://wa.me/${customer.phone}`, "_blank", "noopener,noreferrer");
   }
@@ -1610,6 +1618,7 @@ export function DashboardController() {
             onGenerateInvoice={() => void prepareInvoice(profileCustomer)}
             onWhatsApp={() => openCustomerWhatsApp(profileCustomer)}
             onViewInvoice={openSavedInvoice}
+            onReminderChange={updateReminderStatus}
             onMarkPaid={(invoice) => void recordPayment(invoice)}
           />
         )}
@@ -1635,6 +1644,7 @@ export function DashboardController() {
             areaId={selectedAreaId}
             buildingId={selectedBuildingId}
             onCustomer={openCustomerProfileById}
+            onReminderChange={updateReminderStatus}
             onEdit={openInvoiceEditor}
             onPaid={(invoice) => void recordPayment(invoice)}
           />
@@ -1837,6 +1847,7 @@ export function DashboardController() {
                               <PaymentReminder
                                 invoice={customerActionMap.get(customer.id)!.invoice!}
                                 phone={customer.phone}
+                                onChange={updateReminderStatus}
                               />
                             ) : (
                               <button
