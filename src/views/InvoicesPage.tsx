@@ -6,7 +6,6 @@ export function InvoicesPage({
   refreshKey,
   areaId,
   buildingId,
-  onView,
   onPaid,
   onEdit,
   onCustomer,
@@ -14,7 +13,6 @@ export function InvoicesPage({
   refreshKey: string;
   areaId: number | null;
   buildingId: number | null;
-  onView: (i: Invoice) => void;
   onPaid: (i: Invoice) => void;
   onEdit: (i: Invoice) => void;
   onCustomer: (customerId: number) => void;
@@ -44,6 +42,7 @@ export function InvoicesPage({
     const parameters = new URLSearchParams({
       page: String(page),
       pageSize: String(pageSize),
+      unpaidOnly: "true",
     });
     if (search) parameters.set("search", search);
     if (status) parameters.set("status", status);
@@ -89,8 +88,11 @@ export function InvoicesPage({
     <section className="panel section-panel">
       <div className="panel-head">
         <div>
-          <h2>Generated invoices</h2>
-          <p>{total} invoices in the current location view</p>
+          <h2>Outstanding payments</h2>
+          <p>
+            {total} unpaid bill(s) in the current location view. Open a customer profile for the
+            full history.
+          </p>
         </div>
       </div>
       <div className="invoice-list-toolbar">
@@ -102,13 +104,12 @@ export function InvoicesPage({
           aria-label="Search invoices"
         />
         <select value={status} onChange={(event) => setStatus(event.target.value)}>
-          <option value="">All statuses</option>
+          <option value="">All unpaid payments</option>
           <option value="pending">Pending</option>
           <option value="sent">Sent</option>
           <option value="partially_paid">Partially paid</option>
           <option value="partially_overdue">Partially overdue</option>
           <option value="overdue">Overdue</option>
-          <option value="paid">Paid</option>
         </select>
         <select
           value={pageSize}
@@ -127,7 +128,7 @@ export function InvoicesPage({
               <th>Invoice</th>
               <th>Customer</th>
               <th>Due date</th>
-              <th>Amount</th>
+              <th>Balance due</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -153,7 +154,7 @@ export function InvoicesPage({
                   </td>
                   <td>{new Date(i.dueDate).toLocaleDateString("en-GB")}</td>
                   <td>
-                    <strong>AED {i.total.toFixed(2)}</strong>
+                    <strong>AED {i.balance.toFixed(2)}</strong>
                     {i.paidAmount > 0 && (
                       <small>
                         Paid {i.paidAmount.toFixed(2)} · Balance {i.balance.toFixed(2)}
@@ -166,9 +167,6 @@ export function InvoicesPage({
                   <td>
                     <div className="row-actions">
                       <PaymentReminder key={`${i.id}:${i.reminderSentAt ?? ""}`} invoice={i} />
-                      <button className="send-button" onClick={() => onView(i)}>
-                        View PDF
-                      </button>
                       {i.status !== "paid" && (
                         <button className="edit-button" onClick={() => onEdit(i)}>
                           Edit

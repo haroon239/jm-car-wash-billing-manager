@@ -22,6 +22,7 @@ export function GET(request: NextRequest) {
       pageSize: positiveInteger(query.get("pageSize"), 20, 100),
       search: query.get("search")?.trim().slice(0, 100) || undefined,
       status: statuses.has(status) ? status : undefined,
+      unpaidOnly: query.get("unpaidOnly") === "true",
       areaId: optionalId("areaId"),
       buildingId: optionalId("buildingId"),
     }),

@@ -31,6 +31,7 @@ export type InvoicePageOptions = {
   pageSize: number;
   search?: string;
   status?: string;
+  unpaidOnly?: boolean;
   areaId?: number;
   buildingId?: number;
 };
@@ -50,6 +51,10 @@ export async function findInvoicePage(options: InvoicePageOptions) {
     );
   }
   if (options.status) conditions.push(`i.status=${addValue(options.status)}`);
+  if (options.unpaidOnly)
+    conditions.push(
+      `i.total > COALESCE((SELECT SUM(pay.amount) FROM payments pay WHERE pay.invoice_id=i.id),0)`,
+    );
   if (options.areaId) conditions.push(`c.area_id=${addValue(options.areaId)}`);
   if (options.buildingId) conditions.push(`c.building_id=${addValue(options.buildingId)}`);
 

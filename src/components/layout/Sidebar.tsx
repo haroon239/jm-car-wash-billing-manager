@@ -11,7 +11,7 @@ const items: [Section, string, string][] = [
   ["locations", "▦", "Locations"],
   ["customers", "♙", "Customers"],
   ["plans", "◇", "Plans"],
-  ["invoices", "▤", "Invoices"],
+  ["invoices", "▤", "Payments due"],
   ["payments", "◷", "Payment history"],
   ["reports", "▥", "Reports & export"],
   ["settings", "⚙", "Settings"],

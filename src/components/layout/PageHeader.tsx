@@ -24,8 +24,8 @@ const copy: Record<Section, { eyebrow: string; title: string; subtitle: string }
   },
   invoices: {
     eyebrow: "BILLING",
-    title: "Invoices",
-    subtitle: "Prepare, download and track customer invoices.",
+    title: "Payments due",
+    subtitle: "Review unpaid balances, send reminders and record received payments.",
   },
   payments: {
     eyebrow: "FINANCE",

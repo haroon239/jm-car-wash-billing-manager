@@ -1634,7 +1634,6 @@ export function DashboardController() {
               .join("|")}
             areaId={selectedAreaId}
             buildingId={selectedBuildingId}
-            onView={openSavedInvoice}
             onCustomer={openCustomerProfileById}
             onEdit={openInvoiceEditor}
             onPaid={(invoice) => void recordPayment(invoice)}
@@ -1677,7 +1676,7 @@ export function DashboardController() {
               </p>
             </div>
             <button onClick={() => setSection(invoiceActionCount > 0 ? "invoices" : "customers")}>
-              {invoiceActionCount > 0 ? "Review invoices" : "Review customers"}
+              {invoiceActionCount > 0 ? "Review payments due" : "Review customers"}
             </button>
           </section>
         )}
@@ -1743,7 +1742,7 @@ export function DashboardController() {
           <section className="panel customers-panel">
             <div className="panel-head">
               <div>
-                <h2>Invoices to send</h2>
+                <h2>Payments needing attention</h2>
                 <p>Review, download and share through WhatsApp</p>
               </div>
               <button className="text-button" onClick={() => setSection("invoices")}>
