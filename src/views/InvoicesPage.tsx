@@ -28,6 +28,7 @@ export function InvoicesPage({
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -51,6 +52,7 @@ export function InvoicesPage({
     if (areaId !== null) parameters.set("areaId", String(areaId));
     if (buildingId !== null) parameters.set("buildingId", String(buildingId));
     setLoading(true);
+    setLoadError("");
     fetch(`/api/invoices/paged?${parameters}`, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("Unable to load invoices");
@@ -73,9 +75,14 @@ export function InvoicesPage({
         if (Number(result.page) !== page) setPage(Number(result.page));
       })
       .catch((error) => {
-        if (error instanceof Error && error.name !== "AbortError") setInvoices([]);
+        if (error instanceof Error && error.name !== "AbortError") {
+          setInvoices([]);
+          setLoadError("Unable to load payments. Please refresh and try again.");
+        }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
     return () => controller.abort();
   }, [areaId, buildingId, page, pageSize, refreshKey, search, status]);
 
@@ -107,11 +114,12 @@ export function InvoicesPage({
         />
         <select value={status} onChange={(event) => setStatus(event.target.value)}>
           <option value="">All unpaid payments</option>
-          <option value="pending">Pending</option>
-          <option value="sent">Sent</option>
+          <option value="pending">Payment pending</option>
+          <option value="reminder_sent">Reminder sent</option>
+          <option value="reminder_unsent">Reminder not sent</option>
           <option value="partially_paid">Partially paid</option>
           <option value="partially_overdue">Partially overdue</option>
-          <option value="overdue">Overdue</option>
+          <option value="overdue">All overdue payments</option>
         </select>
         <select
           value={pageSize}
@@ -197,7 +205,10 @@ export function InvoicesPage({
         </table>
         {loading && <div className="empty-state">Loading invoices...</div>}
         {!loading && invoices.length === 0 && (
-          <div className="empty-state">No invoices match the selected filters.</div>
+          <div className="empty-state" role={loadError ? "alert" : undefined}>
+            {loadError ||
+              "No unpaid payments match these filters. Try All unpaid payments or clear your search."}
+          </div>
         )}
       </div>
       {!loading && total > 0 && (

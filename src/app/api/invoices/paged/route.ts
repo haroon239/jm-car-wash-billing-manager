@@ -8,6 +8,8 @@ const statuses = new Set([
   "overdue",
   "partially_paid",
   "partially_overdue",
+  "reminder_sent",
+  "reminder_unsent",
 ]);
 export function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams;

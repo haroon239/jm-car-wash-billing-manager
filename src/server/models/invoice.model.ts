@@ -50,7 +50,12 @@ export async function findInvoicePage(options: InvoicePageOptions) {
       `(i.invoice_number ILIKE ${parameter} OR c.name ILIKE ${parameter} OR c.plate_number ILIKE ${parameter})`,
     );
   }
-  if (options.status) conditions.push(`i.status=${addValue(options.status)}`);
+  if (options.status === "reminder_sent") conditions.push("i.reminder_sent_at IS NOT NULL");
+  else if (options.status === "reminder_unsent") conditions.push("i.reminder_sent_at IS NULL");
+  else if (options.status === "pending") conditions.push("i.status IN ('pending','sent')");
+  else if (options.status === "overdue")
+    conditions.push("i.status IN ('overdue','partially_overdue')");
+  else if (options.status) conditions.push(`i.status=${addValue(options.status)}`);
   if (options.unpaidOnly)
     conditions.push(
       `i.total > COALESCE((SELECT SUM(pay.amount) FROM payments pay WHERE pay.invoice_id=i.id),0)`,
