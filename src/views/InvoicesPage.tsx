@@ -8,6 +8,7 @@ export function InvoicesPage({
   onView,
   onPaid,
   onEdit,
+  onCustomer,
 }: {
   refreshKey: string;
   areaId: number | null;
@@ -15,6 +16,7 @@ export function InvoicesPage({
   onView: (i: Invoice) => void;
   onPaid: (i: Invoice) => void;
   onEdit: (i: Invoice) => void;
+  onCustomer: (customerId: number) => void;
 }) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [page, setPage] = useState(1);
@@ -139,7 +141,13 @@ export function InvoicesPage({
                     {i.revisionNumber > 0 && <small>Revision {i.revisionNumber}</small>}
                   </td>
                   <td>
-                    {i.customerName}
+                    <button
+                      type="button"
+                      className="customer-name-button"
+                      onClick={() => onCustomer(i.customerId)}
+                    >
+                      {i.customerName}
+                    </button>
                     <small>{i.plateNumber}</small>
                   </td>
                   <td>{new Date(i.dueDate).toLocaleDateString("en-GB")}</td>

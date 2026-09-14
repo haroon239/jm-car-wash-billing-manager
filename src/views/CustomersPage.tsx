@@ -10,6 +10,7 @@ type Props = {
   onEdit: (c: Customer) => void;
   onInvoice: (c: Customer) => void;
   onRestore: (c: Customer) => void;
+  onCustomer: (c: Customer) => void;
 };
 export function CustomersPage(p: Props) {
   return (
@@ -66,7 +67,13 @@ export function CustomersPage(p: Props) {
                         .join("")}
                     </span>
                     <div>
-                      <strong>{c.name}</strong>
+                      <button
+                        type="button"
+                        className="customer-name-button"
+                        onClick={() => p.onCustomer(c)}
+                      >
+                        {c.name}
+                      </button>
                       <small>{c.plate}</small>
                     </div>
                   </div>

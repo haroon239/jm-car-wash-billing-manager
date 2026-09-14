@@ -1,7 +1,15 @@
 import { useMemo, useState } from "react";
 import type { Invoice, Payment } from "../types/domain";
 import { formatBillingType } from "../utils/display";
-export function PaymentsPage({ payments, invoices }: { payments: Payment[]; invoices: Invoice[] }) {
+export function PaymentsPage({
+  payments,
+  invoices,
+  onCustomer,
+}: {
+  payments: Payment[];
+  invoices: Invoice[];
+  onCustomer: (customerId: number) => void;
+}) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 25;
@@ -81,7 +89,16 @@ export function PaymentsPage({ payments, invoices }: { payments: Payment[]; invo
                     })}
                   </td>
                   <td>
-                    <strong>{p.customerName}</strong>
+                    <button
+                      type="button"
+                      className="customer-name-button"
+                      onClick={() => {
+                        const invoice = invoices.find((record) => record.id === p.invoiceId);
+                        if (invoice) onCustomer(invoice.customerId);
+                      }}
+                    >
+                      {p.customerName}
+                    </button>
                   </td>
                   <td>{p.invoiceNumber}</td>
                   <td>

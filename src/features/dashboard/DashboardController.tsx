@@ -387,6 +387,7 @@ export function DashboardController() {
   }
 
   async function openCustomerProfile(customer: Customer) {
+    setSection("customers");
     setProfileCustomerId(customer.id);
     setProfileActivities([]);
     try {
@@ -405,6 +406,12 @@ export function DashboardController() {
         "error",
       );
     }
+  }
+
+  function openCustomerProfileById(customerId: number) {
+    const customer = customers.find((record) => record.id === customerId);
+    if (customer) void openCustomerProfile(customer);
+    else setNotice("This customer profile is unavailable. Please refresh and try again.", "error");
   }
 
   function openCustomerWhatsApp(customer: Customer) {
@@ -1627,13 +1634,18 @@ export function DashboardController() {
             areaId={selectedAreaId}
             buildingId={selectedBuildingId}
             onView={openSavedInvoice}
+            onCustomer={openCustomerProfileById}
             onEdit={openInvoiceEditor}
             onPaid={(invoice) => void recordPayment(invoice)}
           />
         )}
 
         {section === "payments" && (
-          <PaymentsPage payments={scopedPayments} invoices={scopedInvoices} />
+          <PaymentsPage
+            payments={scopedPayments}
+            invoices={scopedInvoices}
+            onCustomer={openCustomerProfileById}
+          />
         )}
 
         {section === "reports" && (
@@ -1777,7 +1789,14 @@ export function DashboardController() {
                                 .join("")}
                             </span>
                             <div>
-                              <strong>{customer.name}</strong>
+                              <button
+                                type="button"
+                                className="customer-name-button"
+                                onClick={() => void openCustomerProfile(customer)}
+                                aria-label={`Open ${customer.name}'s customer profile`}
+                              >
+                                {customer.name}
+                              </button>
                               <small>{customer.plate}</small>
                             </div>
                           </div>
