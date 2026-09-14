@@ -2524,7 +2524,11 @@ export function DashboardController() {
       )}
 
       {receivedPayment && (
-        <PaymentReceipt receipt={receivedPayment} onClose={() => setReceivedPayment(null)} />
+        <PaymentReceipt
+          receipt={receivedPayment}
+          company={settings}
+          onClose={() => setReceivedPayment(null)}
+        />
       )}
       {paymentInvoice && (
         <div className="modal-backdrop" onMouseDown={() => setPaymentInvoice(null)}>

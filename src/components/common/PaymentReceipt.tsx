@@ -1,55 +1,41 @@
 import { useState } from "react";
+import type { CompanySettings } from "../../types/domain";
+import { receiptNumber, type ReceiptData } from "../../utils/receiptPdf";
 
-type Receipt = {
-  customerName: string;
-  phone: string;
-  paymentGroup: string;
-  amount: number;
-  balance: number;
-  method: string;
-  paidAt: string;
-  allocations: { invoiceNumber: string; amount: number; balance: number }[];
-};
-
-export function PaymentReceipt({ receipt, onClose }: { receipt: Receipt; onClose: () => void }) {
+export function PaymentReceipt({
+  receipt,
+  company,
+  onClose,
+}: {
+  receipt: ReceiptData;
+  company: CompanySettings;
+  onClose: () => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const number = `PAY-${receipt.paymentGroup.slice(0, 13).replaceAll("-", "").toUpperCase()}`;
+  const [prepared, setPrepared] = useState(false);
+  const number = receiptNumber(receipt.paymentGroup);
+  const phone = receipt.phone.replace(/\D/g, "");
+  const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(`Dear ${receipt.customerName}, we have received your car wash payment of AED ${receipt.amount.toFixed(2)}. Balance remaining for the bills listed on receipt ${number}: AED ${receipt.balance.toFixed(2)}. Thank you. ${company.companyName}`)}`;
   async function download(share: boolean) {
+    if (share && !phone) {
+      setError("Please add the customer's WhatsApp number first.");
+      return;
+    }
+    // Open during the click gesture, before PDF preparation, to avoid popup blocking.
+    const chat = share ? window.open(whatsappUrl, "_blank") : null;
+    if (chat) chat.opener = null;
     setBusy(true);
     setError("");
     try {
-      const { jsPDF } = await import("jspdf");
-      const pdf = new jsPDF();
-      pdf.setFontSize(18);
-      pdf.text("JM CAR WASH - PAYMENT RECEIPT", 15, 22);
-      pdf.setFontSize(11);
-      pdf.text(
-        [
-          `Receipt: ${number}`,
-          `Customer: ${receipt.customerName}`,
-          `Received: ${new Date(receipt.paidAt).toLocaleString("en-GB", { timeZone: "Asia/Dubai" })} (UAE)`,
-          `Payment method: ${receipt.method === "cash" ? "Cash" : "Online"}`,
-          "",
-          "Payment applied to:",
-          ...receipt.allocations.map(
-            (allocation) =>
-              `${allocation.invoiceNumber}: AED ${allocation.amount.toFixed(2)} received; balance AED ${allocation.balance.toFixed(2)}`,
-          ),
-          "",
-          `Total received: AED ${receipt.amount.toFixed(2)}`,
-          `Remaining balance through this bill: AED ${receipt.balance.toFixed(2)}`,
-          "Thank you for your payment.",
-        ],
-        15,
-        35,
-        { maxWidth: 180 },
-      );
+      const { createReceiptPdf } = await import("../../utils/receiptPdf");
+      const pdf = createReceiptPdf(receipt, company);
       const fileName = `${receipt.customerName.replace(/[<>:"/\\|?*]/g, "-")} - JM Car Wash - ${number}.pdf`;
-      const file = new File([pdf.output("blob")], fileName, { type: "application/pdf" });
-      if (share && navigator.canShare?.({ files: [file] }))
-        await navigator.share({ files: [file], title: number });
-      else pdf.save(fileName);
+      pdf.save(fileName);
+      if (share) {
+        setPrepared(true);
+        if (!chat) setError("Your browser blocked WhatsApp. Use Open customer chat below.");
+      }
     } catch (failure) {
       if (!(failure instanceof Error && failure.name === "AbortError"))
         setError("Unable to prepare receipt. Please try again.");
@@ -72,7 +58,7 @@ export function PaymentReceipt({ receipt, onClose }: { receipt: Receipt; onClose
             ×
           </button>
         </div>
-        <div className="customer-form">
+        <div className="customer-form receipt-form">
           <p>
             <strong>AED {receipt.amount.toFixed(2)} received</strong> via{" "}
             {receipt.method === "cash" ? "Cash" : "Online"}.
@@ -98,32 +84,36 @@ export function PaymentReceipt({ receipt, onClose }: { receipt: Receipt; onClose
             </table>
           </div>
           <p>
-            Remaining balance through this bill: <strong>AED {receipt.balance.toFixed(2)}</strong>
+            Balance remaining for the bills listed above:{" "}
+            <strong>AED {receipt.balance.toFixed(2)}</strong>
           </p>
           <small>
-            Older unpaid bills are settled first. On devices without file sharing, the PDF downloads
-            for manual attachment in WhatsApp.
+            Share on WhatsApp downloads the receipt and opens {receipt.customerName}'s chat. In
+            WhatsApp, choose Attach → Document, select the downloaded receipt, then send.
           </small>
+          {prepared && (
+            <p role="status">
+              Receipt downloaded. Attach it in the customer's WhatsApp chat to finish sending.
+            </p>
+          )}
           {error && <p role="alert">{error}</p>}
           <div className="form-actions">
             <button className="secondary" disabled={busy} onClick={() => void download(false)}>
               Download receipt
             </button>
-            <button className="primary" disabled={busy} onClick={() => void download(true)}>
-              Share receipt PDF
+            <button
+              className="whatsapp"
+              disabled={busy || !phone}
+              onClick={() => void download(true)}
+            >
+              {busy ? "Preparing receipt…" : "Share on WhatsApp"}
             </button>
             <button
               className="whatsapp"
-              disabled={!receipt.phone}
-              onClick={() =>
-                window.open(
-                  `https://wa.me/${receipt.phone.replace(/\D/g, "")}?text=${encodeURIComponent(`Dear ${receipt.customerName}, we have received your car wash payment of AED ${receipt.amount.toFixed(2)}. Remaining balance: AED ${receipt.balance.toFixed(2)}. Thank you. JM Car Wash`)}`,
-                  "_blank",
-                  "noopener,noreferrer",
-                )
-              }
+              disabled={!phone || busy}
+              onClick={() => window.open(whatsappUrl, "_blank", "noopener,noreferrer")}
             >
-              Open WhatsApp
+              Open customer chat
             </button>
           </div>
         </div>

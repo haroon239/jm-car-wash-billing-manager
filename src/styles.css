@@ -1301,6 +1301,16 @@ td small {
   gap: 17px;
   background: white;
 }
+.customer-form.receipt-form {
+  display: flex;
+  flex-direction: column;
+}
+.receipt-form table td {
+  white-space: nowrap;
+}
+.receipt-form .form-actions {
+  flex-wrap: wrap;
+}
 .customer-form label {
   display: flex;
   flex-direction: column;
