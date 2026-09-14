@@ -165,6 +165,7 @@ export function DashboardController() {
     })),
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [customerFormError, setCustomerFormError] = useState("");
   const paymentRequestInFlight = useRef(false);
   const [showPlans, setShowPlans] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
@@ -1119,11 +1120,13 @@ export function DashboardController() {
             vehicles: [{ plateNumber: "", makeModel: "", parkingNumber: "", isPrimary: true }],
           },
     );
+    setCustomerFormError("");
     setShowCustomerForm(true);
   }
 
   async function saveCustomer(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setCustomerFormError("");
     const selectedPlan = plans.find((plan) => plan.name === customerForm.plan);
     if (!selectedPlan) return setNotice("Please select a valid plan.", "error");
     const selectedLocation = locations.find(
@@ -1190,7 +1193,9 @@ export function DashboardController() {
       setNotice(`${customerForm.name} ${editing ? "updated" : "added"} successfully.`);
       setShowCustomerForm(false);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Unable to save customer.", "error");
+      const message = error instanceof Error ? error.message : "Unable to save customer.";
+      setCustomerFormError(message);
+      setNotice(message, "error");
     } finally {
       setIsSaving(false);
     }
@@ -1953,6 +1958,20 @@ export function DashboardController() {
               <button onClick={() => setShowCustomerForm(false)}>×</button>
             </div>
             <form className="customer-form" onSubmit={saveCustomer}>
+              {customerFormError && (
+                <div
+                  role="alert"
+                  style={{
+                    gridColumn: "1 / -1",
+                    color: "#b42318",
+                    background: "#fff1f0",
+                    padding: "12px",
+                    borderRadius: "8px",
+                  }}
+                >
+                  {customerFormError}
+                </div>
+              )}
               <h3 className="form-section-title">
                 <span>1</span> Customer contact
               </h3>
