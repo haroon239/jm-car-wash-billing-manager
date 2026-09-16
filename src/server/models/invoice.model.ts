@@ -141,7 +141,7 @@ export async function createInvoice(customerId: number, options: InvoiceGenerati
     const dueDate = calculatePaymentDueDate(
       effectivePeriod,
       customer.rows[0].billing_type,
-      String(customer.rows[0].plan_start_date),
+      customer.rows[0].plan_start_date,
     );
     const existing = await client.query(
       `SELECT ${invoiceFields}

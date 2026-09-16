@@ -1,6 +1,14 @@
 import type { Customer } from "../types/domain";
 
-export function calculateNextBillingDate(startDate: string, billingType: Customer["billingType"]) {
+function dateOnly(value: string | Date) {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+}
+
+export function calculateNextBillingDate(
+  startDate: string | Date,
+  billingType: Customer["billingType"],
+) {
+  startDate = dateOnly(startDate);
   if (!startDate || billingType === "manual") return "";
   const [year, month, day] = startDate.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
@@ -19,10 +27,12 @@ export function calculateNextBillingDate(startDate: string, billingType: Custome
 
 /** Payment becomes due when the billed service cycle finishes. */
 export function calculatePaymentDueDate(
-  billingPeriodStart: string,
+  billingPeriodStart: string | Date,
   billingType: Customer["billingType"],
-  anniversaryStart = billingPeriodStart,
+  anniversaryStart: string | Date = billingPeriodStart,
 ) {
+  billingPeriodStart = dateOnly(billingPeriodStart);
+  anniversaryStart = dateOnly(anniversaryStart);
   if (!billingPeriodStart) return "";
   if (billingType === "monthly") {
     const [year, month] = billingPeriodStart.split("-").map(Number);
