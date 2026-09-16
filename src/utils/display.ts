@@ -1,7 +1,7 @@
 export function formatInvoiceStatus(status: string) {
   const labels: Record<string, string> = {
     pending: "Payment pending",
-    sent: "Invoice sent",
+    sent: "Bill sent",
     paid: "Fully paid",
     overdue: "Payment overdue",
     partially_paid: "Partially paid",

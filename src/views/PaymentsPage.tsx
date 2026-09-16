@@ -5,10 +5,12 @@ export function PaymentsPage({
   payments,
   invoices,
   onCustomer,
+  onReceipt,
 }: {
   payments: Payment[];
   invoices: Invoice[];
   onCustomer: (customerId: number) => void;
+  onReceipt: (payment: Payment) => void;
 }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -55,7 +57,7 @@ export function PaymentsPage({
               .reduce((s, i) => s + i.balance, 0)
               .toFixed(2)}
           </strong>
-          <p>Pending, sent and overdue invoices</p>
+          <p>Pending, sent and overdue bills</p>
         </article>
       </div>
       <section className="panel">
@@ -69,7 +71,7 @@ export function PaymentsPage({
           <label>
             <input
               aria-label="Search payments"
-              placeholder="Search customer, invoice or reference"
+              placeholder="Search customer, bill or reference"
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
@@ -84,11 +86,12 @@ export function PaymentsPage({
               <tr>
                 <th>Date</th>
                 <th>Customer</th>
-                <th>Invoice</th>
+                <th>Bill</th>
                 <th>Method</th>
                 <th>Reference</th>
                 <th>Note</th>
                 <th>Amount</th>
+                <th>Receipt</th>
               </tr>
             </thead>
             <tbody>
@@ -120,6 +123,15 @@ export function PaymentsPage({
                   <td>{p.note || "—"}</td>
                   <td>
                     <strong>AED {p.amount.toFixed(2)}</strong>
+                  </td>
+                  <td>
+                    <button
+                      className="send-button"
+                      disabled={!p.paymentGroup}
+                      onClick={() => onReceipt(p)}
+                    >
+                      View / resend
+                    </button>
                   </td>
                 </tr>
               ))}

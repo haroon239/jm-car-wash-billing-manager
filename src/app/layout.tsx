@@ -3,7 +3,7 @@ import "../styles.css";
 
 export const metadata: Metadata = {
   title: "JM Car Wash — Billing Manager",
-  description: "Customer, subscription, invoice and payment management for JM Car Wash.",
+  description: "Customer, subscription, bill and payment management for JM Car Wash.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

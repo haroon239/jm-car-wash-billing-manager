@@ -13,7 +13,7 @@ export function SettingsPage({ settings, isSaving, onChange, onSave }: Props) {
       <div className="panel-head">
         <div>
           <h2>Company information</h2>
-          <p>This information appears on every generated invoice.</p>
+          <p>This information appears on every generated bill.</p>
         </div>
       </div>
       <form
@@ -66,7 +66,7 @@ export function SettingsPage({ settings, isSaving, onChange, onSave }: Props) {
           />
         </label>
         <label>
-          <span>Invoice prefix</span>
+          <span>Bill number prefix</span>
           <input
             required
             value={settings.invoicePrefix}

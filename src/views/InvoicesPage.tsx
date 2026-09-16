@@ -55,7 +55,7 @@ export function InvoicesPage({
     setLoadError("");
     fetch(`/api/invoices/paged?${parameters}`, { signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) throw new Error("Unable to load invoices");
+        if (!response.ok) throw new Error("Unable to load bills");
         return response.json();
       })
       .then((result) => {
@@ -109,8 +109,8 @@ export function InvoicesPage({
           type="search"
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          placeholder="Search invoice, customer or plate"
-          aria-label="Search invoices"
+          placeholder="Search bill, customer or plate"
+          aria-label="Search bills"
         />
         <select value={status} onChange={(event) => setStatus(event.target.value)}>
           <option value="">All unpaid payments</option>
@@ -124,7 +124,7 @@ export function InvoicesPage({
         <select
           value={pageSize}
           onChange={(event) => setPageSize(Number(event.target.value))}
-          aria-label="Invoices per page"
+          aria-label="Bills per page"
         >
           <option value={20}>20 per page</option>
           <option value={50}>50 per page</option>
@@ -135,7 +135,7 @@ export function InvoicesPage({
         <table className="invoice-table">
           <thead>
             <tr>
-              <th>Invoice</th>
+              <th>Bill</th>
               <th>Customer</th>
               <th>Due date</th>
               <th>Balance due</th>
@@ -203,7 +203,7 @@ export function InvoicesPage({
               ))}
           </tbody>
         </table>
-        {loading && <div className="empty-state">Loading invoices...</div>}
+        {loading && <div className="empty-state">Loading bills...</div>}
         {!loading && invoices.length === 0 && (
           <div className="empty-state" role={loadError ? "alert" : undefined}>
             {loadError ||

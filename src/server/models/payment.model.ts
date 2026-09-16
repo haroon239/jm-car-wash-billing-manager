@@ -17,6 +17,55 @@ export async function findPayments() {
   ).rows;
 }
 
+export async function findPaymentReceipt(paymentGroup: string) {
+  const result = await requireDatabase().query(
+    `WITH receipt_group AS (
+       SELECT MAX(pay.id) AS max_payment_id,MIN(pay.paid_at) AS paid_at,
+         SUM(pay.amount) AS amount,MIN(pay.method) AS method,
+         MIN(i.customer_id) AS customer_id
+       FROM payments pay
+       JOIN invoices i ON i.id=pay.invoice_id
+       WHERE pay.payment_group=$1
+     )
+     SELECT rg.paid_at AS "paidAt",rg.amount,rg.method,
+       c.name AS "customerName",c.phone,
+       i.invoice_number AS "invoiceNumber",i.billing_period AS "billingPeriodStart",
+       SUM(group_pay.amount) AS "allocationAmount",
+       GREATEST(i.total-COALESCE((
+         SELECT SUM(previous_pay.amount) FROM payments previous_pay
+         WHERE previous_pay.invoice_id=i.id AND previous_pay.id<=rg.max_payment_id
+       ),0),0) AS balance
+     FROM receipt_group rg
+     JOIN customers c ON c.id=rg.customer_id
+     JOIN payments group_pay ON group_pay.payment_group=$1
+     JOIN invoices i ON i.id=group_pay.invoice_id
+     WHERE rg.max_payment_id IS NOT NULL
+     GROUP BY rg.max_payment_id,rg.paid_at,rg.amount,rg.method,c.name,c.phone,
+       i.id,i.invoice_number,i.billing_period,i.total
+     ORDER BY i.billing_period,i.id`,
+    [paymentGroup],
+  );
+  if (!result.rowCount)
+    throw Object.assign(new Error("Payment receipt not found"), { status: 404 });
+  const first = result.rows[0];
+  const allocations = result.rows.map((row) => ({
+    invoiceNumber: row.invoiceNumber,
+    billingPeriodStart: row.billingPeriodStart,
+    amount: Number(row.allocationAmount),
+    balance: Number(row.balance),
+  }));
+  return {
+    customerName: first.customerName,
+    phone: first.phone,
+    paymentGroup,
+    amount: Number(first.amount),
+    balance: allocations.reduce((sum, allocation) => sum + allocation.balance, 0),
+    method: first.method,
+    paidAt: first.paidAt,
+    allocations,
+  };
+}
+
 export async function createPayment(input: PaymentInput) {
   const client = await requireDatabase().connect();
   try {
@@ -24,7 +73,7 @@ export async function createPayment(input: PaymentInput) {
     const target = await client.query("SELECT customer_id FROM invoices WHERE id=$1", [
       input.invoiceId,
     ]);
-    if (!target.rowCount) throw Object.assign(new Error("Invoice not found"), { status: 404 });
+    if (!target.rowCount) throw Object.assign(new Error("Bill not found"), { status: 404 });
     // Serialize payments for this customer, including allocations across multiple bills.
     await client.query("SELECT id FROM customers WHERE id=$1 FOR UPDATE", [
       target.rows[0].customer_id,

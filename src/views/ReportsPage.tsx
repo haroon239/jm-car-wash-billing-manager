@@ -82,9 +82,9 @@ export function ReportsPage({
     .reduce((sum, invoice) => sum + invoice.balance, 0);
 
   const exportInvoices = () =>
-    downloadCsv(`JM-Car-Wash-Invoices-${from}-to-${to}.csv`, [
+    downloadCsv(`JM-Car-Wash-Bills-${from}-to-${to}.csv`, [
       [
-        "Invoice",
+        "Bill",
         "Issue date",
         "Due date",
         "Customer",
@@ -140,7 +140,7 @@ export function ReportsPage({
       <section className="panel report-toolbar">
         <div>
           <h2>Business report</h2>
-          <p>Select a period to review invoices and payments in the current location view.</p>
+          <p>Select a period to review bills and payments in the current location view.</p>
         </div>
         <label>
           <span>From</span>
@@ -164,9 +164,9 @@ export function ReportsPage({
 
       <div className="report-kpis">
         <article>
-          <small>INVOICED</small>
+          <small>BILLED</small>
           <strong>AED {invoiced.toFixed(2)}</strong>
-          <p>{filteredInvoices.length} invoices</p>
+          <p>{filteredInvoices.length} bills</p>
         </article>
         <article>
           <small>RECEIVED</small>
@@ -196,7 +196,7 @@ export function ReportsPage({
           Download customers
         </button>
         <button className="primary" onClick={exportInvoices}>
-          Download invoice report
+          Download bill report
         </button>
       </section>
 
@@ -211,7 +211,7 @@ export function ReportsPage({
                 : billingHealth?.billing?.running
                   ? "Automatic billing is checking customer records now."
                   : billingHealth?.billing?.lastCompletedAt
-                    ? "Automatic invoice checking is operating normally."
+                    ? "Automatic bill checking is operating normally."
                     : "Automatic billing is starting its first check."}
             </p>
           </div>
@@ -226,7 +226,7 @@ export function ReportsPage({
             </dd>
           </div>
           <div>
-            <dt>Invoices created</dt>
+            <dt>Bills created</dt>
             <dd>{billingHealth?.billing?.lastGeneratedCount ?? 0}</dd>
           </div>
           <div>

@@ -40,7 +40,7 @@ const copy: Record<Section, { eyebrow: string; title: string; subtitle: string }
   settings: {
     eyebrow: "BUSINESS",
     title: "Settings",
-    subtitle: "Configure company and invoice information.",
+    subtitle: "Configure company and bill information.",
   },
 };
 

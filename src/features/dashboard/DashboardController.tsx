@@ -6,7 +6,12 @@ import { PageHeader } from "../../components/layout/PageHeader";
 import { Notice, type NoticeKind } from "../../components/common/Notice";
 import { PaymentReminder } from "../../components/common/PaymentReminder";
 import { PaymentReceipt } from "../../components/common/PaymentReceipt";
-import { canSendPaymentReminder, isInvoiceDueForDisplay } from "../../utils/reminderEligibility";
+import type { ReceiptData } from "../../utils/receiptPdf";
+import {
+  canSendPaymentReminder,
+  isInvoiceDueForDisplay,
+  previousDueBalance,
+} from "../../utils/reminderEligibility";
 import { InvoicesPage } from "../../views/InvoicesPage";
 import { CustomerProfilePage } from "../../views/CustomerProfilePage";
 import { PaymentsPage } from "../../views/PaymentsPage";
@@ -192,16 +197,7 @@ export function DashboardController() {
     applyToFuture: false,
   });
   const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
-  const [receivedPayment, setReceivedPayment] = useState<{
-    customerName: string;
-    phone: string;
-    paymentGroup: string;
-    amount: number;
-    balance: number;
-    method: string;
-    paidAt: string;
-    allocations: { invoiceNumber: string; amount: number; balance: number }[];
-  } | null>(null);
+  const [receivedPayment, setReceivedPayment] = useState<ReceiptData | null>(null);
   const [paymentForm, setPaymentForm] = useState({
     amount: "",
     method: "cash",
@@ -464,7 +460,7 @@ export function DashboardController() {
         throw new Error((await response.json()).message ?? "Unable to save settings");
       const saved = await response.json();
       setSettings({ ...saved, trn: saved.trn ?? "", vatRate: 0 });
-      setNotice("Company and invoice settings saved.");
+      setNotice("Company and bill settings saved.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Unable to save settings.", "error");
     } finally {
@@ -528,7 +524,7 @@ export function DashboardController() {
         if (invoiceStatus === "overdue" || invoiceStatus === "partially_overdue") {
           action = { kind: "payment-overdue", label: "Payment overdue", invoice };
         } else if (invoiceStatus === "pending") {
-          action = { kind: "invoice-ready", label: "Invoice ready", invoice };
+          action = { kind: "invoice-ready", label: "Bill ready", invoice };
         } else if (invoiceStatus === "sent" || invoiceStatus === "partially_paid") {
           action = { kind: "payment-pending", label: "Payment pending", invoice };
         } else if (customer.nextInvoiceDate) {
@@ -608,7 +604,7 @@ export function DashboardController() {
     const invoice =
       activeInvoice?.invoiceNumber ?? `JMCW-${new Date().getFullYear()}-${customer.id}`;
     const amount = activeInvoice?.total ?? customer.amount;
-    const message = `Hello ${customer.name}, your JM Car Wash invoice ${invoice} for AED ${amount.toFixed(2)} is ready. Thank you.`;
+    const message = `Hello ${customer.name}, your JM Car Wash bill ${invoice} for AED ${amount.toFixed(2)} is ready. Thank you.`;
     window.open(
       `https://wa.me/${customer.phone}?text=${encodeURIComponent(message)}`,
       "_blank",
@@ -622,7 +618,7 @@ export function DashboardController() {
     return [
       cleanFilePart(customer.name),
       cleanFilePart(settings.companyName),
-      cleanFilePart(activeInvoice?.invoiceNumber ?? "Invoice"),
+      cleanFilePart(activeInvoice?.invoiceNumber ?? "Bill"),
     ].join(" - ");
   }
 
@@ -663,20 +659,20 @@ export function DashboardController() {
       const file = new File([pdf.output("blob")], fileName, { type: "application/pdf" });
       const shareData = {
         title: activeInvoice.invoiceNumber,
-        text: `Invoice ${activeInvoice.invoiceNumber} from ${settings.companyName}`,
+        text: `Bill ${activeInvoice.invoiceNumber} from ${settings.companyName}`,
         files: [file],
       };
 
       if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
         await navigator.share(shareData);
-        setNotice("Invoice shared. Mark it as sent after confirming delivery.");
+        setNotice("Bill shared. Mark it as sent after confirming delivery.");
       } else {
         pdf.save(fileName);
         setNotice("PDF downloaded because file sharing is not supported by this browser.");
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
-      setNotice(error instanceof Error ? error.message : "Unable to share invoice.", "error");
+      setNotice(error instanceof Error ? error.message : "Unable to share bill.", "error");
     } finally {
       setIsSaving(false);
     }
@@ -692,7 +688,7 @@ export function DashboardController() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: nextStatus }),
       });
-      if (!response.ok) throw new Error("Unable to update invoice status");
+      if (!response.ok) throw new Error("Unable to update bill status");
       const row = await response.json();
       const actualStatus = String(row.status);
       setInvoices((current) =>
@@ -719,11 +715,11 @@ export function DashboardController() {
         ),
       );
       setNotice(
-        `Invoice ${activeInvoice.invoiceNumber} marked as ${isUnsend ? "unsent" : "sent"} by Admin.`,
+        `Bill ${activeInvoice.invoiceNumber} marked as ${isUnsend ? "unsent" : "sent"} by Admin.`,
       );
     } catch (error) {
       setNotice(
-        error instanceof Error ? error.message : "Unable to update invoice delivery status.",
+        error instanceof Error ? error.message : "Unable to update bill delivery status.",
         "error",
       );
     }
@@ -737,7 +733,7 @@ export function DashboardController() {
         body: JSON.stringify({ customerId: customer.id }),
       });
       if (!response.ok)
-        throw new Error((await response.json()).message ?? "Unable to generate invoice");
+        throw new Error((await response.json()).message ?? "Unable to generate bill");
       const row = await response.json();
       const invoice: Invoice = {
         ...row,
@@ -769,15 +765,15 @@ export function DashboardController() {
       );
       setActive(updatedCustomer);
       if (row.wasExisting)
-        setNotice(`Existing invoice ${invoice.invoiceNumber} opened for this month.`);
+        setNotice(`Existing bill ${invoice.invoiceNumber} opened for this month.`);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Unable to generate invoice.", "error");
+      setNotice(error instanceof Error ? error.message : "Unable to generate bill.", "error");
     }
   }
 
   function openSavedInvoice(invoice: Invoice) {
     const customer = customers.find((item) => item.id === invoice.customerId);
-    if (!customer) return setNotice("Customer record for this invoice is unavailable.", "error");
+    if (!customer) return setNotice("Customer record for this bill is unavailable.", "error");
     setActiveInvoice(invoice);
     setActive(customer);
   }
@@ -800,7 +796,7 @@ export function DashboardController() {
     if (!editingInvoice) return;
     if (
       editingInvoice.sentAt &&
-      !window.confirm("This invoice was already sent. Save the revision and mark it pending?")
+      !window.confirm("This bill was already sent. Save the revision and mark it pending?")
     )
       return;
     setIsSaving(true);
@@ -813,8 +809,7 @@ export function DashboardController() {
           total: Number(invoiceEditForm.total),
         }),
       });
-      if (!response.ok)
-        throw new Error((await response.json()).message ?? "Unable to edit invoice");
+      if (!response.ok) throw new Error((await response.json()).message ?? "Unable to edit bill");
       const updated = await response.json();
       const nextInvoice: Invoice = {
         ...editingInvoice,
@@ -839,12 +834,12 @@ export function DashboardController() {
       }
       setEditingInvoice(null);
       setNotice(
-        `Invoice revised to AED ${nextInvoice.total.toFixed(2)}${
+        `Bill revised to AED ${nextInvoice.total.toFixed(2)}${
           invoiceEditForm.applyToFuture ? " and future price updated" : ""
         }.`,
       );
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Unable to edit invoice.", "error");
+      setNotice(error instanceof Error ? error.message : "Unable to edit bill.", "error");
     } finally {
       setIsSaving(false);
     }
@@ -861,15 +856,7 @@ export function DashboardController() {
   }
 
   function previousBalance(invoice: Invoice) {
-    return invoices
-      .filter(
-        (bill) =>
-          bill.customerId === invoice.customerId &&
-          (bill.billingPeriodStart.slice(0, 10) < invoice.billingPeriodStart.slice(0, 10) ||
-            (bill.billingPeriodStart.slice(0, 10) === invoice.billingPeriodStart.slice(0, 10) &&
-              bill.id < invoice.id)),
-      )
-      .reduce((sum, bill) => sum + bill.balance, 0);
+    return previousDueBalance(invoices, invoice);
   }
 
   async function submitPayment(event: React.FormEvent<HTMLFormElement>) {
@@ -975,6 +962,37 @@ export function DashboardController() {
         overdue: Number(location.overdue),
       })) as LocationSummary[],
     );
+  }
+
+  async function openPaymentReceipt(payment: Payment) {
+    if (!payment.paymentGroup)
+      return setNotice("A receipt is unavailable for this legacy payment record.", "error");
+    try {
+      const response = await fetch(
+        `/api/payments/${encodeURIComponent(payment.paymentGroup)}/receipt`,
+      );
+      const receipt = await response.json();
+      if (!response.ok) throw new Error(receipt.message ?? "Unable to load payment receipt");
+      setReceivedPayment({
+        ...receipt,
+        amount: Number(receipt.amount),
+        balance: Number(receipt.balance),
+        allocations: receipt.allocations.map(
+          (allocation: {
+            invoiceNumber: string;
+            billingPeriodStart?: string;
+            amount: number | string;
+            balance: number | string;
+          }) => ({
+            ...allocation,
+            amount: Number(allocation.amount),
+            balance: Number(allocation.balance),
+          }),
+        ),
+      });
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Unable to load payment receipt", "error");
+    }
   }
 
   async function addArea() {
@@ -1219,9 +1237,7 @@ export function DashboardController() {
   }
 
   async function archiveCustomer(customer: Customer) {
-    if (
-      !window.confirm(`Archive ${customer.name}? Their historical invoices will remain available.`)
-    )
+    if (!window.confirm(`Archive ${customer.name}? Their historical bills will remain available.`))
       return;
     try {
       const response = await fetch(`/api/customers/${customer.id}`, { method: "DELETE" });
@@ -1379,7 +1395,7 @@ export function DashboardController() {
         <div className="location-scope-bar">
           <div>
             <strong>Location view</strong>
-            <small>Dashboard, customers, invoices and payments follow this selection.</small>
+            <small>Dashboard, customers, bills and payments follow this selection.</small>
           </div>
           <select
             aria-label="Filter by area"
@@ -1672,6 +1688,7 @@ export function DashboardController() {
             onViewInvoice={openSavedInvoice}
             onReminderChange={updateReminderStatus}
             onMarkPaid={(invoice) => void recordPayment(invoice)}
+            onReceipt={(payment) => void openPaymentReceipt(payment)}
           />
         )}
 
@@ -1707,6 +1724,7 @@ export function DashboardController() {
             payments={scopedPayments}
             invoices={scopedInvoices}
             onCustomer={openCustomerProfileById}
+            onReceipt={(payment) => void openPaymentReceipt(payment)}
           />
         )}
 
@@ -1787,7 +1805,7 @@ export function DashboardController() {
                   .reduce((sum, invoice) => sum + invoice.balance, 0)
                   .toFixed(2)}
               </strong>
-              <p>{actionCounts.ready + actionCounts.pending} invoices due</p>
+              <p>{actionCounts.ready + actionCounts.pending} bills due</p>
             </div>
           </article>
           <article>
@@ -1910,7 +1928,7 @@ export function DashboardController() {
                               >
                                 {customerActionMap.get(customer.id)?.invoice
                                   ? "View bill"
-                                  : "Generate invoice"}
+                                  : "Generate bill"}
                               </button>
                             )}
                           </div>
@@ -2329,7 +2347,7 @@ export function DashboardController() {
                         setCustomerForm({ ...customerForm, autoInvoice: event.target.checked })
                       }
                     />
-                    <span>Generate invoices automatically</span>
+                    <span>Generate bills automatically</span>
                   </label>
                 </>
               )}
@@ -2456,7 +2474,7 @@ export function DashboardController() {
               <div>
                 <span className="ready">CONTROLLED REVISION</span>
                 <h2>Edit {editingInvoice.invoiceNumber}</h2>
-                <p>Every change is saved in the invoice revision history.</p>
+                <p>Every change is saved in the bill revision history.</p>
               </div>
               <button onClick={() => setEditingInvoice(null)}>×</button>
             </div>
@@ -2475,7 +2493,7 @@ export function DashboardController() {
                 />
               </label>
               <label>
-                <span>Invoice amount (AED)</span>
+                <span>Bill amount (AED)</span>
                 <input
                   required
                   type="number"
@@ -2510,7 +2528,7 @@ export function DashboardController() {
                 />
               </label>
               <label className="full-field">
-                <span>Customer note (printed on invoice)</span>
+                <span>Customer note (printed on bill)</span>
                 <textarea
                   maxLength={500}
                   rows={3}
@@ -2547,7 +2565,7 @@ export function DashboardController() {
                     })
                   }
                 />
-                <span>Use this amount for future invoices too</span>
+                <span>Use this amount for future bills too</span>
               </label>
               <div className="form-actions">
                 <button type="button" className="secondary" onClick={() => setEditingInvoice(null)}>
@@ -2665,7 +2683,7 @@ export function DashboardController() {
             <div className="modal-head">
               <div>
                 <span className="ready">INTERNAL BILLING RECORD</span>
-                <h2>Invoice {activeInvoice?.invoiceNumber}</h2>
+                <h2>Bill {activeInvoice?.invoiceNumber}</h2>
                 <p>Charges and billing history. Send a payment receipt after receiving payment.</p>
               </div>
               <button
@@ -2689,7 +2707,7 @@ export function DashboardController() {
                     {settings.trn ? ` · TRN ${settings.trn}` : ""}
                   </small>
                 </div>
-                <h3>INVOICE</h3>
+                <h3>BILL</h3>
               </div>
               <div className="invoice-meta">
                 <div>
@@ -2715,7 +2733,7 @@ export function DashboardController() {
                 </div>
                 <div>
                   <p>
-                    <span>Invoice no.</span>
+                    <span>Bill no.</span>
                     <b>{activeInvoice?.invoiceNumber}</b>
                   </p>
                   <p>

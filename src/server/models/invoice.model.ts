@@ -338,7 +338,7 @@ export async function updateInvoiceStatus(id: number, status: string) {
     await logCustomerActivity(
       Number(result.customerId),
       status === "sent" ? "invoice_sent" : "invoice_unsent",
-      status === "sent" ? "Invoice marked sent" : "Invoice marked unsent",
+      status === "sent" ? "Bill marked sent" : "Bill marked unsent",
       result.invoiceNumber,
     );
   }
@@ -365,9 +365,9 @@ export async function editInvoice(id: number, input: InvoiceEditInput) {
        FROM invoices i WHERE i.id=$1 FOR UPDATE`,
       [id],
     );
-    if (!current.rowCount) throw Object.assign(new Error("Invoice not found"), { status: 404 });
+    if (!current.rowCount) throw Object.assign(new Error("Bill not found"), { status: 404 });
     if (current.rows[0].status === "paid")
-      throw Object.assign(new Error("Paid invoices cannot be edited"), { status: 409 });
+      throw Object.assign(new Error("Paid bills cannot be edited"), { status: 409 });
     if (input.total < Number(current.rows[0].paid_amount))
       throw Object.assign(
         new Error(

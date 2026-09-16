@@ -17,6 +17,7 @@ type Props = {
   onViewInvoice: (invoice: Invoice) => void;
   onMarkPaid: (invoice: Invoice) => void;
   onReminderChange: (invoiceId: number, sentAt: string | null) => void;
+  onReceipt: (payment: Payment) => void;
 };
 
 const money = (value: number) => `AED ${value.toFixed(2)}`;
@@ -34,6 +35,7 @@ export function CustomerProfilePage({
   onViewInvoice,
   onMarkPaid,
   onReminderChange,
+  onReceipt,
 }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
   const [washes, setWashes] = useState<WashRecord[]>([]);
@@ -157,19 +159,19 @@ export function CustomerProfilePage({
           <button
             className="primary"
             disabled={contractHasEnded}
-            title={contractHasEnded ? "No invoices can be generated after contract end" : undefined}
+            title={contractHasEnded ? "No bills can be generated after contract end" : undefined}
             onClick={onGenerateInvoice}
           >
-            {contractHasEnded ? "Contract ended" : "Generate invoice"}
+            {contractHasEnded ? "Contract ended" : "Generate bill"}
           </button>
         </div>
       </div>
 
       <div className="profile-financials">
         <article>
-          <small>TOTAL INVOICED</small>
+          <small>TOTAL BILLED</small>
           <strong>{money(totals.invoiced)}</strong>
-          <p>{invoices.length} invoice(s)</p>
+          <p>{invoices.length} bill(s)</p>
         </article>
         <article>
           <small>TOTAL PAID</small>
@@ -191,7 +193,7 @@ export function CustomerProfilePage({
       <div className="profile-tabs">
         {(["overview", "washes", "invoices", "payments", "activity"] as Tab[]).map((item) => (
           <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>
-            {item[0].toUpperCase() + item.slice(1)}
+            {item === "invoices" ? "Bills" : item[0].toUpperCase() + item.slice(1)}
           </button>
         ))}
       </div>
@@ -303,11 +305,11 @@ export function CustomerProfilePage({
                   {money(latestInvoice.total)} · {latestInvoice.status}
                 </p>
                 <button className="send-button" onClick={() => onViewInvoice(latestInvoice)}>
-                  View latest invoice
+                  View latest bill
                 </button>
               </>
             ) : (
-              <p>No invoice generated yet.</p>
+              <p>No bill generated yet.</p>
             )}
           </section>
         </div>
@@ -338,6 +340,7 @@ export function CustomerProfilePage({
                   <th>Date & time</th>
                   <th>Vehicle</th>
                   <th>Note</th>
+                  <th>Receipt</th>
                   <th>Recorded by</th>
                 </tr>
               </thead>
@@ -361,7 +364,7 @@ export function CustomerProfilePage({
         <section className="panel profile-list">
           <div className="panel-head">
             <div>
-              <h2>Invoice history</h2>
+              <h2>Bill history</h2>
               <p>Complete billing record</p>
             </div>
           </div>
@@ -369,7 +372,7 @@ export function CustomerProfilePage({
             <table>
               <thead>
                 <tr>
-                  <th>Invoice</th>
+                  <th>Bill</th>
                   <th>Issue / due</th>
                   <th>Amount</th>
                   <th>Status</th>
@@ -415,7 +418,7 @@ export function CustomerProfilePage({
               </tbody>
             </table>
           </div>
-          {invoices.length === 0 && <div className="empty-state">No invoices found.</div>}
+          {invoices.length === 0 && <div className="empty-state">No bills found.</div>}
         </section>
       )}
 
@@ -432,7 +435,7 @@ export function CustomerProfilePage({
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Invoice</th>
+                  <th>Bill</th>
                   <th>Amount</th>
                   <th>Method</th>
                   <th>Reference</th>
@@ -450,6 +453,15 @@ export function CustomerProfilePage({
                     <td>{payment.method.replace("_", " ")}</td>
                     <td>{payment.reference || "—"}</td>
                     <td>{payment.note || "—"}</td>
+                    <td>
+                      <button
+                        className="send-button"
+                        disabled={!payment.paymentGroup}
+                        onClick={() => onReceipt(payment)}
+                      >
+                        View / resend
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

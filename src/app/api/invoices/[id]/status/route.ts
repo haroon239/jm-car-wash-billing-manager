@@ -10,7 +10,7 @@ export async function PATCH(request: NextRequest, context: Context) {
       idSchema.parse((await context.params).id),
       invoiceStatusSchema.parse(await request.json()).status,
     );
-    if (!result) throw Object.assign(new Error("Invoice not found"), { status: 404 });
+    if (!result) throw Object.assign(new Error("Bill not found"), { status: 404 });
     return result;
   });
 }

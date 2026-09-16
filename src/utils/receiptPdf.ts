@@ -69,7 +69,7 @@ export function createReceiptPdf(receipt: ReceiptData, company: CompanySettings)
     pdf.setFillColor(237, 247, 246);
     pdf.rect(15, y, 180, 10, "F");
     text("BILLING START", 18, y + 6, 8, true);
-    text("INVOICE", 58, y + 6, 8, true);
+    text("BILL", 58, y + 6, 8, true);
     text("RECEIVED", 126, y + 6, 8, true);
     text("BALANCE", 165, y + 6, 8, true);
     y += 10;

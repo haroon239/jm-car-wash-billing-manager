@@ -36,7 +36,7 @@ export function OverviewPage(p: Props) {
           <div>
             <small>PAYMENT PENDING</small>
             <strong>{p.customers.filter((c) => c.status !== "Paid").length}</strong>
-            <p>Invoices due</p>
+            <p>Bills due</p>
           </div>
         </article>
         <article>
@@ -52,7 +52,7 @@ export function OverviewPage(p: Props) {
         <section className="panel customers-panel">
           <div className="panel-head">
             <div>
-              <h2>Invoices to send</h2>
+              <h2>Bills to send</h2>
               <p>Review, download and share through WhatsApp</p>
             </div>
           </div>

@@ -99,7 +99,7 @@ export function LocationsPage({
           <h3>Financial performances</h3>
           <dl>
             <div>
-              <dt>Total invoiced</dt>
+              <dt>Total billed</dt>
               <dd>{money(selectedBuilding.invoiced)}</dd>
             </div>
             <div>
@@ -172,7 +172,7 @@ export function LocationsPage({
                   <strong>Safe archive</strong>
                   <p>
                     A building can only be archived after all active customers are moved or
-                    archived. Invoice history will remain safe.
+                    archived. Bill history will remain safe.
                   </p>
                 </div>
                 <div className="form-actions">
