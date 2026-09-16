@@ -1193,7 +1193,8 @@ export function DashboardController() {
           : [record, ...current],
       );
       setNotice(
-        saved.billingWarning ||
+        saved.billingSyncWarning ||
+          saved.billingWarning ||
           `${customerForm.name} ${editing ? "updated" : "added"} successfully.`,
       );
       setShowCustomerForm(false);

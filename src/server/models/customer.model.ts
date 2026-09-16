@@ -213,6 +213,42 @@ export async function updateCustomer(id: number, input: CustomerInput) {
       await client.query("ROLLBACK");
       return undefined;
     }
+    let billingSyncWarning = "";
+    const currentBill = await client.query(
+      `SELECT i.id,i.invoice_number,
+        (SELECT COUNT(*) FROM invoices all_i WHERE all_i.customer_id=i.customer_id) AS invoice_count,
+        COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.invoice_id=i.id),0) AS paid
+       FROM invoices i
+       WHERE i.customer_id=$1
+       ORDER BY i.billing_period DESC,i.id DESC
+       LIMIT 1
+       FOR UPDATE OF i`,
+      [id],
+    );
+    if (currentBill.rowCount) {
+      if (
+        Number(currentBill.rows[0].invoice_count) === 1 &&
+        Number(currentBill.rows[0].paid) === 0
+      ) {
+        const dueDate = nextInvoiceDate ?? planStartDate;
+        await client.query(
+          `UPDATE invoices SET issue_date=$1,billing_period=$1,
+             billing_month=DATE_TRUNC('month',$1::DATE)::DATE,due_date=$2,
+             subtotal=$3,total=$3,
+             description=(SELECT name || ' Car Wash Plan' FROM plans WHERE id=$4),
+             status=CASE WHEN $2::DATE < (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Dubai')::DATE
+                         THEN 'overdue' ELSE 'pending' END,
+             sent_at=NULL,reminder_sent_at=NULL
+           WHERE id=$5`,
+          [planStartDate, dueDate, agreedPrice, planId, currentBill.rows[0].id],
+        );
+      } else if (Number(currentBill.rows[0].paid) > 0) {
+        billingSyncWarning = `Customer updated, but bill ${currentBill.rows[0].invoice_number} was not changed because it already has a payment receipt. Financial history remains unchanged.`;
+      } else {
+        billingSyncWarning =
+          "Customer updated. Existing billing history was not rewritten because this customer has multiple bills. Future bills will use the new subscription dates.";
+      }
+    }
     await client.query("DELETE FROM vehicles WHERE customer_id=$1", [id]);
     for (const [index, vehicle] of vehicles.entries()) {
       await client.query(
@@ -222,7 +258,7 @@ export async function updateCustomer(id: number, input: CustomerInput) {
       );
     }
     await client.query("COMMIT");
-    return result.rows[0];
+    return { ...result.rows[0], billingSyncWarning };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
