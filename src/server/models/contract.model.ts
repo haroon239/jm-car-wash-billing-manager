@@ -50,7 +50,7 @@ export async function stopCustomerContract(customerId: number, stopDate: string,
     const result = await client.query(
       `SELECT c.id,c.plan_start_date,c.agreed_price,c.billing_type,p.name AS plan_name
        FROM customers c LEFT JOIN plans p ON p.id=c.plan_id
-       WHERE c.id=$1 AND c.deleted_at IS NULL FOR UPDATE`,
+       WHERE c.id=$1 AND c.deleted_at IS NULL FOR UPDATE OF c`,
       [customerId],
     );
     if (!result.rowCount)
