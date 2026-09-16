@@ -71,7 +71,7 @@ export async function stopCustomerContract(customerId: number, stopDate: string,
           { status: 409 },
         );
       await client.query(
-        `UPDATE invoices SET subtotal=$1,total=$1,due_date=$2::DATE+7,
+        `UPDATE invoices SET subtotal=$1,total=$1,due_date=$2::DATE,
           description=$3,customer_note=$4,
           status=CASE WHEN $5::NUMERIC=$1 THEN 'paid' WHEN $5::NUMERIC>0 THEN 'partially_paid' ELSE 'pending' END
          WHERE id=$6`,
@@ -91,7 +91,7 @@ export async function stopCustomerContract(customerId: number, stopDate: string,
       const inserted = await client.query(
         `INSERT INTO invoices(invoice_number,customer_id,subtotal,vat_amount,total,status,
           issue_date,due_date,billing_month,billing_period,generation_source,description,customer_note)
-         VALUES($1,$2,$3,0,$3,'pending',$4,$4::DATE+7,DATE_TRUNC('month',$5::DATE)::DATE,$5,'manual',$6,$7)
+         VALUES($1,$2,$3,0,$3,'pending',$4,$4::DATE,DATE_TRUNC('month',$5::DATE)::DATE,$5,'manual',$6,$7)
          RETURNING id`,
         [
           `TMP-STOP-${Date.now()}-${customerId}`,

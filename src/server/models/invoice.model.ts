@@ -1,4 +1,5 @@
 import { requireDatabase } from "../config/database";
+import { calculatePaymentDueDate } from "../../utils/billing";
 import { logCustomerActivity } from "./activity.model";
 
 const uaeToday = "(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Dubai')::DATE";
@@ -122,7 +123,7 @@ export async function createInvoice(customerId: number, options: InvoiceGenerati
   try {
     await client.query("BEGIN");
     const customer = await client.query(
-      `SELECT c.id,c.name,c.phone,c.plate_number,c.agreed_price,c.billing_type,
+      `SELECT c.id,c.name,c.phone,c.plate_number,c.agreed_price,c.billing_type,c.plan_start_date,
         p.name AS plan_name
        FROM customers c
        JOIN plans p ON p.id=c.plan_id
@@ -133,6 +134,15 @@ export async function createInvoice(customerId: number, options: InvoiceGenerati
       throw Object.assign(new Error("Active customer not found"), { status: 404 });
 
     const billingPeriod = options.billingPeriod ?? options.issueDate ?? null;
+    const effectivePeriod =
+      billingPeriod ??
+      options.issueDate ??
+      new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
+    const dueDate = calculatePaymentDueDate(
+      effectivePeriod,
+      customer.rows[0].billing_type,
+      String(customer.rows[0].plan_start_date),
+    );
     const existing = await client.query(
       `SELECT ${invoiceFields}
        FROM invoices i
@@ -156,7 +166,7 @@ export async function createInvoice(customerId: number, options: InvoiceGenerati
       ) VALUES (
         $1,$2,$3,0,$3,
         COALESCE($4::DATE,${uaeToday}),
-        COALESCE($4::DATE,${uaeToday})+7,
+        $8::DATE,
         DATE_TRUNC('month',COALESCE($5::DATE,$4::DATE,${uaeToday}))::DATE,
         COALESCE($5::DATE,$4::DATE,${uaeToday}),$6,$7
       )
@@ -170,6 +180,7 @@ export async function createInvoice(customerId: number, options: InvoiceGenerati
         billingPeriod,
         options.source ?? "manual",
         description,
+        dueDate,
       ],
     );
     if (!inserted.rowCount) {
