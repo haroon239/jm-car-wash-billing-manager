@@ -10,7 +10,7 @@ export async function findCustomers(view: "active" | "archived" | "all") {
         : "c.deleted_at IS NULL";
   return (
     await requireDatabase().query(`
-    SELECT c.id, c.name, c.phone, c.email, c.plan_start_date AS "customerSince",
+    SELECT c.id, c.name, c.phone, c.email, c.customer_since AS "customerSince",
       c.plate_number AS "plateNumber",
       c.building_no AS "buildingNo",c.flat_no AS "flatNo",c.room_no AS "roomNo",
       c.parking_no AS "parkingNo",
@@ -103,11 +103,11 @@ export async function createCustomer(input: CustomerInput) {
     if (!location.rowCount) throw new Error("Selected building does not belong to this area");
     const result = await client.query(
       `INSERT INTO customers (
-        name,phone,email,plate_number,plan_id,plan_start_date,agreed_price,
+        name,phone,email,plate_number,plan_id,plan_start_date,customer_since,agreed_price,
         billing_type,auto_invoice,next_invoice_date,building_no,flat_no,parking_no,
         area_id,building_id,room_no,contract_end_date,washes_per_cycle
       ) VALUES (
-        $1,$2,NULLIF($3,''),$4,$5,$6,$7,$8,$9,$10,
+        $1,$2,NULLIF($3,''),$4,$5,$6,$6,$7,$8,$9,$10,
         NULLIF($11,''),NULLIF($12,''),NULLIF($13,''),$14,$15,NULLIF($16,''),$17,$18
       ) RETURNING *`,
       [
