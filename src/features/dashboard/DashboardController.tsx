@@ -2306,14 +2306,17 @@ export function DashboardController() {
                   value={customerForm.billingType}
                   onChange={(event) => {
                     const billingType = event.target.value as Customer["billingType"];
+                    const nextDate = calculateNextBillingDate(
+                      customerForm.planStartDate,
+                      billingType,
+                    );
                     setCustomerForm({
                       ...customerForm,
                       billingType,
                       autoInvoice: billingType !== "manual",
-                      nextInvoiceDate: calculateNextBillingDate(
-                        customerForm.planStartDate,
-                        billingType,
-                      ),
+                      nextInvoiceDate: nextDate,
+                      contractEndDate:
+                        billingType === "one_time" ? nextDate : customerForm.contractEndDate,
                     });
                   }}
                 >
@@ -2354,28 +2357,34 @@ export function DashboardController() {
                         event.target.value,
                         customerForm.billingType,
                       ),
+                      contractEndDate:
+                        customerForm.billingType === "one_time"
+                          ? calculateNextBillingDate(event.target.value, "one_time")
+                          : customerForm.contractEndDate,
                     })
                   }
                 />
               </label>
-              <label>
-                <span>Contract end date (optional)</span>
-                <input
-                  type="date"
-                  min={customerForm.planStartDate}
-                  value={customerForm.contractEndDate ?? ""}
-                  onChange={(event) =>
-                    setCustomerForm({
-                      ...customerForm,
-                      contractEndDate: event.target.value || null,
-                    })
-                  }
-                />
-                <small>
-                  Leave empty for an ongoing contract. On this date, the final billing period is
-                  prorated and automatic renewals stop.
-                </small>
-              </label>
+              {customerForm.billingType !== "one_time" && (
+                <label>
+                  <span>Contract end date (optional)</span>
+                  <input
+                    type="date"
+                    min={customerForm.planStartDate}
+                    value={customerForm.contractEndDate ?? ""}
+                    onChange={(event) =>
+                      setCustomerForm({
+                        ...customerForm,
+                        contractEndDate: event.target.value || null,
+                      })
+                    }
+                  />
+                  <small>
+                    Leave empty for an ongoing contract. On this date, the final billing period is
+                    prorated and automatic renewals stop.
+                  </small>
+                </label>
+              )}
               {customerForm.billingType !== "manual" && (
                 <>
                   <label>
@@ -2392,9 +2401,19 @@ export function DashboardController() {
                         setCustomerForm({
                           ...customerForm,
                           nextInvoiceDate: event.target.value,
+                          contractEndDate:
+                            customerForm.billingType === "one_time"
+                              ? event.target.value
+                              : customerForm.contractEndDate,
                         })
                       }
                     />
+                    {customerForm.billingType === "one_time" && (
+                      <small>
+                        The full bill is created on the plan start date; service and contract end on
+                        this date.
+                      </small>
+                    )}
                   </label>
                   <label className="checkbox-label">
                     <input

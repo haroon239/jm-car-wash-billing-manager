@@ -90,6 +90,8 @@ export async function createCustomer(input: CustomerInput) {
     washesPerCycle,
     vehicles,
   } = input;
+  const effectiveContractEndDate =
+    billingType === "one_time" && !contractEndDate ? nextInvoiceDate : contractEndDate;
   const client = await requireDatabase().connect();
   try {
     await client.query("BEGIN");
@@ -118,7 +120,7 @@ export async function createCustomer(input: CustomerInput) {
         agreedPrice,
         billingType,
         autoInvoice,
-        autoInvoice && (billingType === "monthly" || billingType === "weekly")
+        autoInvoice && ["monthly", "weekly", "one_time"].includes(billingType)
           ? planStartDate
           : nextInvoiceDate,
         buildingNo,
@@ -127,7 +129,7 @@ export async function createCustomer(input: CustomerInput) {
         areaId,
         buildingId,
         roomNo,
-        contractEndDate,
+        effectiveContractEndDate,
         washesPerCycle,
       ],
     );
@@ -140,7 +142,7 @@ export async function createCustomer(input: CustomerInput) {
         customerId,
         planId,
         planStartDate,
-        contractEndDate,
+        effectiveContractEndDate,
         agreedPrice,
         billingType,
         washesPerCycle,
@@ -186,6 +188,8 @@ export async function updateCustomer(id: number, input: CustomerInput) {
     washesPerCycle,
     vehicles,
   } = input;
+  const effectiveContractEndDate =
+    billingType === "one_time" && !contractEndDate ? nextInvoiceDate : contractEndDate;
   const client = await requireDatabase().connect();
   try {
     await client.query("BEGIN");
@@ -212,14 +216,14 @@ export async function updateCustomer(id: number, input: CustomerInput) {
         agreedPrice,
         billingType,
         autoInvoice,
-        nextInvoiceDate,
+        autoInvoice && billingType === "one_time" ? planStartDate : nextInvoiceDate,
         buildingNo,
         flatNo,
         parkingNo,
         areaId,
         buildingId,
         roomNo,
-        contractEndDate,
+        effectiveContractEndDate,
         washesPerCycle,
         id,
       ],
@@ -237,7 +241,7 @@ export async function updateCustomer(id: number, input: CustomerInput) {
         id,
         planId,
         planStartDate,
-        contractEndDate,
+        effectiveContractEndDate,
         agreedPrice,
         billingType,
         washesPerCycle,

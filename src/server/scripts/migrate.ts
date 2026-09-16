@@ -30,6 +30,7 @@ const sqlPaths = [
     new URL("../../../database/019_sync_single_unpaid_invoice_dates.sql", import.meta.url),
   ),
   fileURLToPath(new URL("../../../database/020_contract_renewals.sql", import.meta.url)),
+  fileURLToPath(new URL("../../../database/021_one_time_contract_end.sql", import.meta.url)),
 ];
 async function migrate() {
   const client = new pg.Client({ connectionString });
