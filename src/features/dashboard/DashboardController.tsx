@@ -1189,7 +1189,7 @@ export function DashboardController() {
         due: "01 Aug 2026",
         status: editing?.status ?? "Pending",
         archivedAt: editing?.archivedAt,
-        customerSince: editing?.customerSince ?? saved.created_at ?? new Date().toISOString(),
+        customerSince: customerForm.planStartDate,
       };
       setCustomers((current) =>
         editing

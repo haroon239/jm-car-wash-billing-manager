@@ -10,7 +10,7 @@ export async function findCustomers(view: "active" | "archived" | "all") {
         : "c.deleted_at IS NULL";
   return (
     await requireDatabase().query(`
-    SELECT c.id, c.name, c.phone, c.email, c.created_at AS "customerSince",
+    SELECT c.id, c.name, c.phone, c.email, c.plan_start_date AS "customerSince",
       c.plate_number AS "plateNumber",
       c.building_no AS "buildingNo",c.flat_no AS "flatNo",c.room_no AS "roomNo",
       c.parking_no AS "parkingNo",
