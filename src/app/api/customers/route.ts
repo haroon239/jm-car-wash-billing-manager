@@ -10,7 +10,12 @@ export function GET(request: NextRequest) {
   return route(async () => {
     // Vercel Hobby cron execution can be delayed. Opening the owner dashboard
     // is a safe idempotent fallback that catches up every missed billing cycle.
-    await runBillingMaintenance();
+    try {
+      await runBillingMaintenance();
+    } catch (error) {
+      // Billing catch-up must never make the owner lose access to all business data.
+      console.error("Dashboard billing catch-up failed", error);
+    }
     return customers.findCustomers(
       request.nextUrl.searchParams.get("view") === "archived"
         ? "archived"
