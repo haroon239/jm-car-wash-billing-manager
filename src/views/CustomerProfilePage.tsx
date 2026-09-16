@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PaymentReminder } from "../components/common/PaymentReminder";
 import type { Customer, CustomerActivity, Invoice, Payment, WashRecord } from "../types/domain";
+import { getDubaiIsoDate } from "../utils/display";
 
 type Tab = "overview" | "washes" | "invoices" | "payments" | "activity";
 
@@ -37,6 +38,13 @@ export function CustomerProfilePage({
   const [tab, setTab] = useState<Tab>("overview");
   const [washes, setWashes] = useState<WashRecord[]>([]);
   const [washBusy, setWashBusy] = useState(false);
+  const today = getDubaiIsoDate();
+  const contractEnd = customer.contractEndDate?.slice(0, 10) ?? null;
+  const contractHasEnded = Boolean(contractEnd && contractEnd <= today);
+  const hasScheduledEnd = Boolean(contractEnd && contractEnd > today);
+  const renewalAfterContract = Boolean(
+    contractEnd && customer.nextInvoiceDate?.slice(0, 10) > contractEnd,
+  );
   useEffect(() => {
     void fetch(`/api/customers/${customer.id}/washes`)
       .then((response) => (response.ok ? response.json() : []))
@@ -114,7 +122,13 @@ export function CustomerProfilePage({
             .join("")}
         </div>
         <div className="profile-identity">
-          <span className="ready">CUSTOMER 360° PROFILE</span>
+          <span className={contractHasEnded ? "contract-ended-badge" : "ready"}>
+            {contractHasEnded
+              ? `CONTRACT ENDED ${date(contractEnd)}`
+              : hasScheduledEnd
+                ? `CONTRACT ENDS ${date(contractEnd)}`
+                : "CUSTOMER 360° PROFILE"}
+          </span>
           <h2>{customer.name}</h2>
           <p>
             Customer since {date(customer.customerSince)} · {customer.phone} · {customer.plate}
@@ -124,19 +138,29 @@ export function CustomerProfilePage({
           <button className="secondary" onClick={onEdit}>
             Edit customer
           </button>
-          <button className="secondary" disabled={washBusy} onClick={() => void recordWash()}>
+          <button
+            className="secondary"
+            disabled={washBusy || contractHasEnded}
+            title={contractHasEnded ? "This contract has ended" : undefined}
+            onClick={() => void recordWash()}
+          >
             {washBusy ? "Saving…" : "+ Record wash"}
           </button>
-          {!customer.contractEndDate && (
+          {!contractHasEnded && (
             <button className="secondary" onClick={() => void stopContract()}>
-              Stop contract
+              {hasScheduledEnd ? "End early" : "Stop contract"}
             </button>
           )}
           <button className="whatsapp" onClick={onWhatsApp}>
             WhatsApp
           </button>
-          <button className="primary" onClick={onGenerateInvoice}>
-            Generate invoice
+          <button
+            className="primary"
+            disabled={contractHasEnded}
+            title={contractHasEnded ? "No invoices can be generated after contract end" : undefined}
+            onClick={onGenerateInvoice}
+          >
+            {contractHasEnded ? "Contract ended" : "Generate invoice"}
           </button>
         </div>
       </div>
@@ -248,7 +272,10 @@ export function CustomerProfilePage({
               </div>
               <div>
                 <dt>Contract ends</dt>
-                <dd>{date(customer.contractEndDate)}</dd>
+                <dd>
+                  {date(customer.contractEndDate)}
+                  {hasScheduledEnd ? " (scheduled)" : contractHasEnded ? " (ended)" : ""}
+                </dd>
               </div>
               <div>
                 <dt>Wash usage</dt>
@@ -259,7 +286,9 @@ export function CustomerProfilePage({
               </div>
               <div>
                 <dt>Next renewal</dt>
-                <dd>{date(customer.nextInvoiceDate)}</dd>
+                <dd>
+                  {contractHasEnded || renewalAfterContract ? "—" : date(customer.nextInvoiceDate)}
+                </dd>
               </div>
             </dl>
           </section>
@@ -294,7 +323,11 @@ export function CustomerProfilePage({
                 {customer.washesPerCycle ? ` · ${customer.washesPerCycle} included per cycle` : ""}
               </p>
             </div>
-            <button className="primary" disabled={washBusy} onClick={() => void recordWash()}>
+            <button
+              className="primary"
+              disabled={washBusy || contractHasEnded}
+              onClick={() => void recordWash()}
+            >
               + Record wash
             </button>
           </div>

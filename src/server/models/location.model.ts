@@ -8,12 +8,15 @@ export async function findLocations() {
         b.id AS "buildingId",b.name AS "buildingName",
         COUNT(DISTINCT c.id) FILTER (
           WHERE c.deleted_at IS NULL AND c.status='active'
+            AND (c.contract_end_date IS NULL OR c.contract_end_date > (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Dubai')::DATE)
         )::INTEGER AS "activeCustomers",
         COALESCE(SUM(
           CASE
             WHEN c.deleted_at IS NULL AND c.status='active' AND c.billing_type='monthly'
+              AND (c.contract_end_date IS NULL OR c.contract_end_date > (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Dubai')::DATE)
               THEN c.agreed_price
             WHEN c.deleted_at IS NULL AND c.status='active' AND c.billing_type='weekly'
+              AND (c.contract_end_date IS NULL OR c.contract_end_date > (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Dubai')::DATE)
               THEN c.agreed_price * 52.0 / 12.0
             ELSE 0
           END

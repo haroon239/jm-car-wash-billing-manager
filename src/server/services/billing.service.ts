@@ -5,6 +5,7 @@ import {
   findCustomersDueForInvoice,
   markPastDueInvoicesOverdue,
 } from "../models/invoice.model";
+import { findContractsEndingToday, stopCustomerContract } from "../models/contract.model";
 
 const DUBAI_OFFSET_MS = 4 * 60 * 60 * 1000;
 const RUN_MINUTE_AFTER_MIDNIGHT = 5;
@@ -47,6 +48,18 @@ export async function runBillingMaintenance() {
       }
     }
 
+    for (const customer of await findContractsEndingToday()) {
+      try {
+        const endDate =
+          customer.contractEndDate instanceof Date
+            ? customer.contractEndDate.toISOString().slice(0, 10)
+            : String(customer.contractEndDate).slice(0, 10);
+        await stopCustomerContract(Number(customer.id), endDate, "Scheduled contract end reached.");
+      } catch (error) {
+        console.error(`Unable to finalize scheduled contract ${customer.id}`, error);
+      }
+    }
+
     const overdueCount = await markPastDueInvoicesOverdue();
     billingMaintenanceStatus.lastCompletedAt = new Date().toISOString();
     billingMaintenanceStatus.lastGeneratedCount = generatedCount;
@@ -66,6 +79,19 @@ export async function runBillingMaintenance() {
 export async function createNextCustomerInvoice(customerId: number) {
   const schedule = await findCustomerBillingSchedule(customerId);
   if (!schedule) throw Object.assign(new Error("Active customer not found"), { status: 404 });
+  const dubaiToday = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" });
+  const contractEnd = schedule.contractEndDate
+    ? schedule.contractEndDate instanceof Date
+      ? schedule.contractEndDate.toISOString().slice(0, 10)
+      : String(schedule.contractEndDate).slice(0, 10)
+    : null;
+  if (contractEnd && contractEnd <= dubaiToday)
+    throw Object.assign(
+      new Error("This contract has ended. Its final bill is handled automatically."),
+      {
+        status: 409,
+      },
+    );
 
   if (
     (schedule.billingType !== "monthly" && schedule.billingType !== "weekly") ||

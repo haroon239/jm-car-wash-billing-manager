@@ -2296,7 +2296,10 @@ export function DashboardController() {
                     })
                   }
                 />
-                <small>Leave empty for an ongoing contract.</small>
+                <small>
+                  Leave empty for an ongoing contract. On this date, the final billing period is
+                  prorated and automatic renewals stop.
+                </small>
               </label>
               {customerForm.billingType !== "manual" && (
                 <>

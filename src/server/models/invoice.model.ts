@@ -106,7 +106,8 @@ type InvoiceGenerationOptions = {
 export async function findCustomerBillingSchedule(customerId: number) {
   return (
     await requireDatabase().query(
-      `SELECT next_invoice_date AS "invoiceDate",billing_type AS "billingType"
+      `SELECT next_invoice_date AS "invoiceDate",billing_type AS "billingType",
+        contract_end_date AS "contractEndDate"
        FROM customers
        WHERE id=$1 AND deleted_at IS NULL`,
       [customerId],
@@ -115,6 +116,7 @@ export async function findCustomerBillingSchedule(customerId: number) {
     | {
         invoiceDate: string | null;
         billingType: "monthly" | "weekly" | "one_time" | "manual";
+        contractEndDate: string | Date | null;
       }
     | undefined;
 }
@@ -251,6 +253,7 @@ export async function findCustomersDueForInvoice() {
         AND c.billing_type IN ('monthly','weekly','one_time')
         AND c.next_invoice_date IS NOT NULL
         AND c.next_invoice_date <= ${uaeToday}
+        AND (c.contract_end_date IS NULL OR c.next_invoice_date <= c.contract_end_date)
       ORDER BY c.next_invoice_date,c.id
     `)
   ).rows as Array<{

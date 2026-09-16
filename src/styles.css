@@ -566,6 +566,16 @@ td small {
   color: var(--muted);
   font-size: 11px;
 }
+.contract-ended-badge {
+  display: inline-flex;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: #fde7e7;
+  color: #b42318;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
 .profile-actions {
   display: flex;
   gap: 8px;

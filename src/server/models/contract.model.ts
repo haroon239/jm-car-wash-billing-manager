@@ -1,7 +1,9 @@
 import { requireDatabase } from "../config/database";
 
 const dayMs = 86_400_000;
-const parseDate = (value: string) => new Date(`${value.slice(0, 10)}T00:00:00Z`);
+const dateOnly = (value: string | Date) =>
+  value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+const parseDate = (value: string | Date) => new Date(`${dateOnly(value)}T00:00:00Z`);
 const iso = (value: Date) => value.toISOString().slice(0, 10);
 function addMonth(value: Date) {
   const day = value.getUTCDate();
@@ -13,7 +15,11 @@ function addMonth(value: Date) {
   return result;
 }
 
-export function proratedContractAmount(start: string, stop: string, fullPrice: number) {
+export function proratedContractAmount(
+  start: string | Date,
+  stop: string | Date,
+  fullPrice: number,
+) {
   const anchor = parseDate(start);
   const stopped = parseDate(stop);
   if (stopped < anchor)
@@ -50,7 +56,7 @@ export async function stopCustomerContract(customerId: number, stopDate: string,
       throw Object.assign(new Error("Active customer not found"), { status: 404 });
     const customer = result.rows[0];
     const calculation = proratedContractAmount(
-      String(customer.plan_start_date),
+      customer.plan_start_date,
       stopDate,
       Number(customer.agreed_price),
     );
@@ -142,4 +148,21 @@ export async function stopCustomerContract(customerId: number, stopDate: string,
   } finally {
     client.release();
   }
+}
+
+export async function findContractsEndingToday() {
+  return (
+    await requireDatabase().query(`
+      SELECT id,contract_end_date AS "contractEndDate"
+      FROM customers
+      WHERE deleted_at IS NULL AND status='active'
+        AND contract_end_date IS NOT NULL
+        AND contract_end_date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Dubai')::DATE
+        AND NOT EXISTS (
+          SELECT 1 FROM contract_stops cs
+          WHERE cs.customer_id=customers.id AND cs.stop_date=customers.contract_end_date
+        )
+      ORDER BY contract_end_date,id
+    `)
+  ).rows as Array<{ id: string | number; contractEndDate: string | Date }>;
 }
