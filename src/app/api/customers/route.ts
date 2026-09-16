@@ -7,15 +7,18 @@ import { runBillingMaintenance } from "@/server/services/billing.service";
 
 export const runtime = "nodejs";
 export function GET(request: NextRequest) {
-  return route(() =>
-    customers.findCustomers(
+  return route(async () => {
+    // Vercel Hobby cron execution can be delayed. Opening the owner dashboard
+    // is a safe idempotent fallback that catches up every missed billing cycle.
+    await runBillingMaintenance();
+    return customers.findCustomers(
       request.nextUrl.searchParams.get("view") === "archived"
         ? "archived"
         : request.nextUrl.searchParams.get("view") === "all"
           ? "all"
           : "active",
-    ),
-  );
+    );
+  });
 }
 export async function POST(request: NextRequest) {
   return route(async () => {
