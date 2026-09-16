@@ -31,7 +31,7 @@ import type {
   LocationSummary,
   Vehicle,
 } from "../../types/domain";
-import { formatBillingType } from "../../utils/display";
+import { formatBillingType, getDubaiIsoDate } from "../../utils/display";
 import { calculateNextBillingDate } from "../../utils/billing";
 
 const planPrices: Record<string, number> = {
@@ -137,6 +137,7 @@ export function DashboardController() {
   const [customerPage, setCustomerPage] = useState(1);
   const [active, setActive] = useState<Customer | null>(null);
   const [editing, setEditing] = useState<Customer | null>(null);
+  const [renewing, setRenewing] = useState(false);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [customerForm, setCustomerForm] = useState<CustomerForm>({
     name: "",
@@ -1090,6 +1091,7 @@ export function DashboardController() {
       locations.find((location) => location.areaId === defaultAreaId)?.buildingId ??
       0;
     setEditing(customer ?? null);
+    setRenewing(false);
     setCustomerForm(
       customer
         ? {
@@ -1149,6 +1151,46 @@ export function DashboardController() {
     setShowCustomerForm(true);
   }
 
+  function openRenewContract(customer: Customer) {
+    if (!customer.contractEndDate) return;
+    const previousEnd = new Date(`${customer.contractEndDate.slice(0, 10)}T00:00:00Z`);
+    previousEnd.setUTCDate(previousEnd.getUTCDate() + 1);
+    const startDate = [previousEnd.toISOString().slice(0, 10), getDubaiIsoDate()].sort().at(-1)!;
+    setEditing(customer);
+    setRenewing(true);
+    setCustomerForm({
+      name: customer.name,
+      phone: customer.phone,
+      plate: customer.plate,
+      buildingNo: customer.buildingNo,
+      flatNo: customer.flatNo,
+      roomNo: customer.roomNo,
+      parkingNo: customer.parkingNo,
+      plan: customer.plan,
+      planStartDate: startDate,
+      contractEndDate: null,
+      washesPerCycle: customer.washesPerCycle,
+      amount: customer.amount,
+      billingType: "monthly",
+      autoInvoice: true,
+      nextInvoiceDate: calculateNextBillingDate(startDate, "monthly"),
+      areaId: customer.areaId ?? selectedAreaId ?? locations[0]?.areaId ?? 0,
+      buildingId: customer.buildingId ?? selectedBuildingId ?? locations[0]?.buildingId ?? 0,
+      vehicles: customer.vehicles?.length
+        ? customer.vehicles
+        : [
+            {
+              plateNumber: customer.plate,
+              makeModel: "",
+              parkingNumber: customer.parkingNo,
+              isPrimary: true,
+            },
+          ],
+    });
+    setCustomerFormError("");
+    setShowCustomerForm(true);
+  }
+
   async function saveCustomer(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setCustomerFormError("");
@@ -1164,32 +1206,39 @@ export function DashboardController() {
     const primaryVehicle = vehicles[0];
     setIsSaving(true);
     try {
-      const response = await fetch(editing ? `/api/customers/${editing.id}` : "/api/customers", {
-        method: editing ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: customerForm.name,
-          phone: customerForm.phone,
-          email: "",
-          plateNumber: primaryVehicle.plateNumber,
-          buildingNo: selectedLocation.buildingName,
-          flatNo: customerForm.flatNo,
-          roomNo: customerForm.roomNo,
-          parkingNo: primaryVehicle.parkingNumber,
-          areaId: customerForm.areaId,
-          buildingId: customerForm.buildingId,
-          vehicles,
-          planId: selectedPlan.id,
-          planStartDate: customerForm.planStartDate,
-          contractEndDate: customerForm.contractEndDate,
-          washesPerCycle: customerForm.washesPerCycle,
-          agreedPrice: customerForm.amount,
-          billingType: customerForm.billingType,
-          autoInvoice: customerForm.billingType === "manual" ? false : customerForm.autoInvoice,
-          nextInvoiceDate:
-            customerForm.billingType === "manual" ? null : customerForm.nextInvoiceDate,
-        }),
-      });
+      const response = await fetch(
+        renewing && editing
+          ? `/api/customers/${editing.id}/renew-contract`
+          : editing
+            ? `/api/customers/${editing.id}`
+            : "/api/customers",
+        {
+          method: renewing ? "POST" : editing ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: customerForm.name,
+            phone: customerForm.phone,
+            email: "",
+            plateNumber: primaryVehicle.plateNumber,
+            buildingNo: selectedLocation.buildingName,
+            flatNo: customerForm.flatNo,
+            roomNo: customerForm.roomNo,
+            parkingNo: primaryVehicle.parkingNumber,
+            areaId: customerForm.areaId,
+            buildingId: customerForm.buildingId,
+            vehicles,
+            planId: selectedPlan.id,
+            planStartDate: customerForm.planStartDate,
+            contractEndDate: customerForm.contractEndDate,
+            washesPerCycle: customerForm.washesPerCycle,
+            agreedPrice: customerForm.amount,
+            billingType: customerForm.billingType,
+            autoInvoice: customerForm.billingType === "manual" ? false : customerForm.autoInvoice,
+            nextInvoiceDate:
+              customerForm.billingType === "manual" ? null : customerForm.nextInvoiceDate,
+          }),
+        },
+      );
       if (!response.ok)
         throw new Error((await response.json()).message ?? "Unable to save customer");
       const saved = await response.json();
@@ -1217,9 +1266,10 @@ export function DashboardController() {
       setNotice(
         saved.billingSyncWarning ||
           saved.billingWarning ||
-          `${customerForm.name} ${editing ? "updated" : "added"} successfully.`,
+          `${customerForm.name} ${renewing ? "contract renewed" : editing ? "updated" : "added"} successfully.`,
       );
       setShowCustomerForm(false);
+      setRenewing(false);
       setDataRevision((value) => value + 1);
       void reloadLocations().catch(() =>
         setNotice(
@@ -1683,6 +1733,7 @@ export function DashboardController() {
             activities={profileActivities}
             onBack={() => setProfileCustomerId(null)}
             onEdit={() => openCustomerForm(profileCustomer)}
+            onRenew={() => openRenewContract(profileCustomer)}
             onGenerateInvoice={() => void prepareInvoice(profileCustomer)}
             onWhatsApp={() => openCustomerWhatsApp(profileCustomer)}
             onViewInvoice={openSavedInvoice}
@@ -1985,8 +2036,14 @@ export function DashboardController() {
             <div className="modal-head">
               <div>
                 <span className="ready">CUSTOMER RECORD</span>
-                <h2>{editing ? "Edit customer" : "Add new customer"}</h2>
-                <p>Enter the customer, vehicle and subscription details.</p>
+                <h2>
+                  {renewing ? "Renew contract" : editing ? "Edit customer" : "Add new customer"}
+                </h2>
+                <p>
+                  {renewing
+                    ? "Start a new contract while preserving the previous contract and billing history."
+                    : "Enter the customer, vehicle and subscription details."}
+                </p>
               </div>
               <button onClick={() => setShowCustomerForm(false)}>×</button>
             </div>
@@ -2352,7 +2409,7 @@ export function DashboardController() {
                 </>
               )}
               <div className="form-actions">
-                {editing && (
+                {editing && !renewing && (
                   <button
                     type="button"
                     className="danger"
@@ -2369,7 +2426,13 @@ export function DashboardController() {
                   Cancel
                 </button>
                 <button type="submit" className="primary" disabled={isSaving}>
-                  {isSaving ? "Saving…" : editing ? "Save changes" : "Add customer"}
+                  {isSaving
+                    ? "Saving…"
+                    : renewing
+                      ? "Start new contract"
+                      : editing
+                        ? "Save changes"
+                        : "Add customer"}
                 </button>
               </div>
             </form>

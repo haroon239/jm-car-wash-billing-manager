@@ -132,6 +132,21 @@ export async function createCustomer(input: CustomerInput) {
       ],
     );
     const customerId = Number(result.rows[0].id);
+    await client.query(
+      `INSERT INTO customer_contracts(customer_id,plan_id,plan_start_date,contract_end_date,
+        agreed_price,billing_type,washes_per_cycle,auto_invoice,status)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,'active')`,
+      [
+        customerId,
+        planId,
+        planStartDate,
+        contractEndDate,
+        agreedPrice,
+        billingType,
+        washesPerCycle,
+        autoInvoice,
+      ],
+    );
     for (const [index, vehicle] of vehicles.entries()) {
       await client.query(
         `INSERT INTO vehicles(customer_id,plate_number,make_model,parking_number,is_primary)
@@ -213,6 +228,22 @@ export async function updateCustomer(id: number, input: CustomerInput) {
       await client.query("ROLLBACK");
       return undefined;
     }
+    await client.query(
+      `UPDATE customer_contracts SET plan_id=$2,plan_start_date=$3::DATE,
+        contract_end_date=$4::DATE,agreed_price=$5,billing_type=$6,
+        washes_per_cycle=$7,auto_invoice=$8
+       WHERE customer_id=$1 AND status='active'`,
+      [
+        id,
+        planId,
+        planStartDate,
+        contractEndDate,
+        agreedPrice,
+        billingType,
+        washesPerCycle,
+        autoInvoice,
+      ],
+    );
     let billingSyncWarning = "";
     const currentBill = await client.query(
       `SELECT i.id,i.invoice_number,

@@ -25,6 +25,11 @@ const sqlPaths = [
   fileURLToPath(new URL("../../../database/015_online_payment_method.sql", import.meta.url)),
   fileURLToPath(new URL("../../../database/016_payment_reminders.sql", import.meta.url)),
   fileURLToPath(new URL("../../../database/017_payment_groups.sql", import.meta.url)),
+  fileURLToPath(new URL("../../../database/018_cycle_end_payment_due.sql", import.meta.url)),
+  fileURLToPath(
+    new URL("../../../database/019_sync_single_unpaid_invoice_dates.sql", import.meta.url),
+  ),
+  fileURLToPath(new URL("../../../database/020_contract_renewals.sql", import.meta.url)),
 ];
 async function migrate() {
   const client = new pg.Client({ connectionString });

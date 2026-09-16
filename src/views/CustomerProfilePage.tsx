@@ -4,6 +4,15 @@ import type { Customer, CustomerActivity, Invoice, Payment, WashRecord } from ".
 import { getDubaiIsoDate } from "../utils/display";
 
 type Tab = "overview" | "washes" | "invoices" | "payments" | "activity";
+type ContractRecord = {
+  id: number;
+  planName: string;
+  planStartDate: string;
+  contractEndDate: string | null;
+  agreedPrice: number | string;
+  billingType: string;
+  status: "active" | "ended";
+};
 
 type Props = {
   customer: Customer;
@@ -12,6 +21,7 @@ type Props = {
   activities: CustomerActivity[];
   onBack: () => void;
   onEdit: () => void;
+  onRenew: () => void;
   onGenerateInvoice: () => void;
   onWhatsApp: () => void;
   onViewInvoice: (invoice: Invoice) => void;
@@ -30,6 +40,7 @@ export function CustomerProfilePage({
   activities,
   onBack,
   onEdit,
+  onRenew,
   onGenerateInvoice,
   onWhatsApp,
   onViewInvoice,
@@ -39,10 +50,12 @@ export function CustomerProfilePage({
 }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
   const [washes, setWashes] = useState<WashRecord[]>([]);
+  const [contracts, setContracts] = useState<ContractRecord[]>([]);
   const [washBusy, setWashBusy] = useState(false);
   const today = getDubaiIsoDate();
   const contractEnd = customer.contractEndDate?.slice(0, 10) ?? null;
   const contractHasEnded = Boolean(contractEnd && contractEnd <= today);
+  const contractStartsInFuture = customer.planStartDate.slice(0, 10) > today;
   const hasScheduledEnd = Boolean(contractEnd && contractEnd > today);
   const renewalAfterContract = Boolean(
     contractEnd && customer.nextInvoiceDate?.slice(0, 10) > contractEnd,
@@ -51,6 +64,11 @@ export function CustomerProfilePage({
     void fetch(`/api/customers/${customer.id}/washes`)
       .then((response) => (response.ok ? response.json() : []))
       .then(setWashes);
+  }, [customer.id]);
+  useEffect(() => {
+    void fetch(`/api/customers/${customer.id}/contracts`)
+      .then((response) => (response.ok ? response.json() : []))
+      .then(setContracts);
   }, [customer.id]);
 
   async function recordWash() {
@@ -127,9 +145,11 @@ export function CustomerProfilePage({
           <span className={contractHasEnded ? "contract-ended-badge" : "ready"}>
             {contractHasEnded
               ? `CONTRACT ENDED ${date(contractEnd)}`
-              : hasScheduledEnd
-                ? `CONTRACT ENDS ${date(contractEnd)}`
-                : "CUSTOMER 360° PROFILE"}
+              : contractStartsInFuture
+                ? `CONTRACT STARTS ${date(customer.planStartDate)}`
+                : hasScheduledEnd
+                  ? `CONTRACT ENDS ${date(contractEnd)}`
+                  : "CUSTOMER 360° PROFILE"}
           </span>
           <h2>{customer.name}</h2>
           <p>
@@ -140,10 +160,21 @@ export function CustomerProfilePage({
           <button className="secondary" onClick={onEdit}>
             Edit customer
           </button>
+          {contractHasEnded && (
+            <button className="primary" onClick={onRenew}>
+              Renew contract
+            </button>
+          )}
           <button
             className="secondary"
-            disabled={washBusy || contractHasEnded}
-            title={contractHasEnded ? "This contract has ended" : undefined}
+            disabled={washBusy || contractHasEnded || contractStartsInFuture}
+            title={
+              contractHasEnded
+                ? "This contract has ended"
+                : contractStartsInFuture
+                  ? "This contract has not started yet"
+                  : undefined
+            }
             onClick={() => void recordWash()}
           >
             {washBusy ? "Saving…" : "+ Record wash"}
@@ -158,11 +189,21 @@ export function CustomerProfilePage({
           </button>
           <button
             className="primary"
-            disabled={contractHasEnded}
-            title={contractHasEnded ? "No bills can be generated after contract end" : undefined}
+            disabled={contractHasEnded || contractStartsInFuture}
+            title={
+              contractHasEnded
+                ? "No bills can be generated after contract end"
+                : contractStartsInFuture
+                  ? "Billing starts on the new contract start date"
+                  : undefined
+            }
             onClick={onGenerateInvoice}
           >
-            {contractHasEnded ? "Contract ended" : "Generate bill"}
+            {contractHasEnded
+              ? "Contract ended"
+              : contractStartsInFuture
+                ? "Not started"
+                : "Generate bill"}
           </button>
         </div>
       </div>
@@ -312,6 +353,26 @@ export function CustomerProfilePage({
               <p>No bill generated yet.</p>
             )}
           </section>
+          <section className="panel profile-detail-card">
+            <h3>Contract history</h3>
+            {contracts.length ? (
+              <dl>
+                {contracts.map((contract) => (
+                  <div key={contract.id}>
+                    <dt>
+                      {date(contract.planStartDate)} – {date(contract.contractEndDate)}
+                    </dt>
+                    <dd>
+                      {contract.planName} · {money(Number(contract.agreedPrice))} ·{" "}
+                      {contract.status}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p>No previous contract recorded yet.</p>
+            )}
+          </section>
         </div>
       )}
 
@@ -327,7 +388,7 @@ export function CustomerProfilePage({
             </div>
             <button
               className="primary"
-              disabled={washBusy || contractHasEnded}
+              disabled={washBusy || contractHasEnded || contractStartsInFuture}
               onClick={() => void recordWash()}
             >
               + Record wash
