@@ -6,7 +6,7 @@ import { PageHeader } from "../../components/layout/PageHeader";
 import { Notice, type NoticeKind } from "../../components/common/Notice";
 import { PaymentReminder } from "../../components/common/PaymentReminder";
 import { PaymentReceipt } from "../../components/common/PaymentReceipt";
-import { canSendPaymentReminder } from "../../utils/reminderEligibility";
+import { canSendPaymentReminder, isInvoiceDueForDisplay } from "../../utils/reminderEligibility";
 import { InvoicesPage } from "../../views/InvoicesPage";
 import { CustomerProfilePage } from "../../views/CustomerProfilePage";
 import { PaymentsPage } from "../../views/PaymentsPage";
@@ -219,8 +219,12 @@ export function DashboardController() {
     vatRate: 0,
   });
   const profileCustomer = customers.find((customer) => customer.id === profileCustomerId) ?? null;
+  const visibleInvoices = useMemo(
+    () => invoices.filter((invoice) => isInvoiceDueForDisplay(invoice)),
+    [invoices],
+  );
   const profileInvoices = profileCustomer
-    ? invoices.filter((invoice) => invoice.customerId === profileCustomer.id)
+    ? visibleInvoices.filter((invoice) => invoice.customerId === profileCustomer.id)
     : [];
   const profileInvoiceIds = new Set(profileInvoices.map((invoice) => invoice.id));
   const profilePayments = payments.filter((payment) => profileInvoiceIds.has(payment.invoiceId));
@@ -482,8 +486,8 @@ export function DashboardController() {
     [scopedCustomers],
   );
   const scopedInvoices = useMemo(
-    () => invoices.filter((invoice) => scopedCustomerIds.has(invoice.customerId)),
-    [invoices, scopedCustomerIds],
+    () => visibleInvoices.filter((invoice) => scopedCustomerIds.has(invoice.customerId)),
+    [visibleInvoices, scopedCustomerIds],
   );
   const scopedInvoiceIds = useMemo(
     () => new Set(scopedInvoices.map((invoice) => invoice.id)),

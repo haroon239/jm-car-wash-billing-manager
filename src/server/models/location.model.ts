@@ -41,6 +41,7 @@ export async function findLocations() {
           SELECT SUM(p.amount) AS paid FROM payments p WHERE p.invoice_id=i.id
         ) pay ON TRUE
         WHERE ic.building_id=b.id
+          AND i.due_date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Dubai')::DATE
       ) invoice_totals ON TRUE
       GROUP BY prop.id,prop.name,a.id,a.name,b.id,b.name,
         invoice_totals.invoiced,invoice_totals.collected,
