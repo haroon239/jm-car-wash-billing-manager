@@ -56,86 +56,7 @@ export async function stopCustomerContract(customerId: number, stopDate: string,
     if (!result.rowCount)
       throw Object.assign(new Error("Active customer not found"), { status: 404 });
     const customer = result.rows[0];
-    const fixedContract = ["one_time", "manual"].includes(customer.billing_type);
-    const calculation = fixedContract
-      ? {
-          periodStart: dateOnly(customer.plan_start_date),
-          periodEnd: stopDate,
-          usedDays:
-            Math.floor(
-              (parseDate(stopDate).getTime() - parseDate(customer.plan_start_date).getTime()) /
-                dayMs,
-            ) + 1,
-          totalDays:
-            Math.floor(
-              (parseDate(stopDate).getTime() - parseDate(customer.plan_start_date).getTime()) /
-                dayMs,
-            ) + 1,
-          amount: Number(customer.agreed_price),
-        }
-      : proratedContractAmount(customer.plan_start_date, stopDate, Number(customer.agreed_price));
-    const existing = await client.query(
-      `SELECT i.id,i.invoice_number,i.status,
-        COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.invoice_id=i.id),0) AS paid
-       FROM invoices i WHERE i.customer_id=$1
-         AND ($3::BOOLEAN OR i.billing_period=$2::DATE)
-       ORDER BY i.billing_period DESC,i.id DESC LIMIT 1`,
-      [customerId, calculation.periodStart, fixedContract],
-    );
-    let invoiceNumber: string;
-    if (existing.rowCount) {
-      const invoice = existing.rows[0];
-      if (!fixedContract && Number(invoice.paid) > calculation.amount)
-        throw Object.assign(
-          new Error(
-            "Received payment exceeds the prorated amount; refund or correct the payment first.",
-          ),
-          { status: 409 },
-        );
-      if (!fixedContract)
-        await client.query(
-          `UPDATE invoices SET subtotal=$1,total=$1,due_date=$2::DATE,
-            description=$3,customer_note=$4,
-            status=CASE WHEN $5::NUMERIC=$1 THEN 'paid' WHEN $5::NUMERIC>0 THEN 'partially_paid' ELSE 'pending' END
-           WHERE id=$6`,
-          [
-            calculation.amount,
-            stopDate,
-            `${customer.plan_name ?? "Car Wash"} Plan (prorated final period)`,
-            `Contract stopped ${stopDate}. Charged ${calculation.usedDays} of ${calculation.totalDays} days.`,
-            Number(invoice.paid),
-            invoice.id,
-          ],
-        );
-      invoiceNumber = invoice.invoice_number;
-    } else {
-      const settings = await client.query("SELECT invoice_prefix FROM company_settings WHERE id=1");
-      const prefix = String(settings.rows[0]?.invoice_prefix ?? "JMCW");
-      const inserted = await client.query(
-        `INSERT INTO invoices(invoice_number,customer_id,subtotal,vat_amount,total,status,
-          issue_date,due_date,billing_month,billing_period,generation_source,description,customer_note)
-         VALUES($1,$2,$3,0,$3,'pending',$4,$4::DATE,DATE_TRUNC('month',$5::DATE)::DATE,$5,'manual',$6,$7)
-         RETURNING id`,
-        [
-          `TMP-STOP-${Date.now()}-${customerId}`,
-          customerId,
-          calculation.amount,
-          stopDate,
-          calculation.periodStart,
-          fixedContract
-            ? `${customer.plan_name ?? "Car Wash"} Plan (fixed contract)`
-            : `${customer.plan_name ?? "Car Wash"} Plan (prorated final period)`,
-          fixedContract
-            ? `Contract completed ${stopDate}.`
-            : `Contract stopped ${stopDate}. Charged ${calculation.usedDays} of ${calculation.totalDays} days.`,
-        ],
-      );
-      invoiceNumber = `${prefix}-${parseDate(stopDate).getUTCFullYear()}-${String(inserted.rows[0].id).padStart(6, "0")}`;
-      await client.query("UPDATE invoices SET invoice_number=$1 WHERE id=$2", [
-        invoiceNumber,
-        inserted.rows[0].id,
-      ]);
-    }
+    const periodStart = dateOnly(customer.plan_start_date);
     await client.query(
       `UPDATE customers SET contract_end_date=$1,auto_invoice=FALSE,next_invoice_date=NULL,updated_at=NOW() WHERE id=$2`,
       [stopDate, customerId],
@@ -152,10 +73,10 @@ export async function stopCustomerContract(customerId: number, stopDate: string,
       [
         customerId,
         stopDate,
-        calculation.periodStart,
-        calculation.periodEnd,
+        periodStart,
+        stopDate,
         customer.agreed_price,
-        calculation.amount,
+        0,
         reason,
       ],
     );
@@ -164,11 +85,11 @@ export async function stopCustomerContract(customerId: number, stopDate: string,
        VALUES($1,'contract_stopped','Contract stopped',$2)`,
       [
         customerId,
-        `${invoiceNumber}: ${calculation.usedDays}/${calculation.totalDays} days, AED ${calculation.amount.toFixed(2)}.${reason ? ` ${reason}` : ""}`,
+        `Contract ended on ${stopDate}. No additional bill was generated.${reason ? ` ${reason}` : ""}`,
       ],
     );
     await client.query("COMMIT");
-    return { invoiceNumber, ...calculation };
+    return { stopped: true, stopDate };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
