@@ -2271,6 +2271,43 @@ td small {
   padding: 48px 24px;
   text-align: center;
 }
+.backup-card {
+  display: grid;
+  grid-template-columns: 1fr minmax(180px, 240px) auto;
+  align-items: center;
+  gap: 18px;
+  margin-top: 16px;
+  padding: 22px;
+}
+.backup-card h2,
+.backup-card p {
+  margin: 0;
+}
+.backup-card p,
+.backup-card small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+}
+.backup-card > input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 11px 12px;
+}
+.backup-message {
+  grid-column: 1 / -1;
+  color: var(--teal) !important;
+  font-weight: 700;
+}
+@media (max-width: 800px) {
+  .backup-card {
+    grid-template-columns: 1fr;
+  }
+  .backup-card button {
+    width: 100%;
+  }
+}
 .app-loading h2,
 .app-load-error h2 {
   margin: 14px 0 6px;
