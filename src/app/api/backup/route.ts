@@ -2,6 +2,8 @@ import { timingSafeEqual } from "node:crypto";
 import { createFullBackup } from "@/server/models/backup.model";
 import { publicError } from "@/server/errors";
 import { env } from "@/server/config/env";
+import { getSessionUser, sessionCookie } from "@/server/auth";
+import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
@@ -14,6 +16,9 @@ function matchesSecret(value: string) {
 
 export async function POST(request: Request) {
   try {
+    const user = await getSessionUser((await cookies()).get(sessionCookie)?.value);
+    if (user?.role !== "admin")
+      return Response.json({ message: "Please sign in as an administrator." }, { status: 401 });
     if (!env.backupSecret)
       return Response.json({ message: "Backup password is not configured." }, { status: 503 });
     if (!matchesSecret(request.headers.get("x-backup-secret") ?? ""))

@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit --pretty false",
     "test": "tsx --test src/**/*.test.ts",
     "db:migrate": "tsx --env-file=.env src/server/scripts/migrate.ts",
+    "auth:create-admin": "tsx --env-file=.env src/server/scripts/create-admin.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

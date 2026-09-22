@@ -71,3 +71,19 @@ npm run format:check
 ```
 
 Secrets belong only in `.env` or the hosting provider's environment settings and must never be committed.
+
+# Authentication setup
+
+Authentication is fail-closed: do not deploy the login gate before creating the first
+administrator account in the same database used by production.
+
+1. Run `npm run db:migrate` against the intended database to create `app_users` and
+   `app_sessions`.
+2. Run `npm run auth:create-admin` in a private interactive terminal and enter the
+   administrator's name, email, and a unique password of at least 14 characters.
+3. Deploy the application. Open `/login` and verify sign-in and sign-out.
+
+Sessions are HTTP-only, same-site cookies valid for 12 hours. Five failed passwords
+lock an account for 15 minutes. The initial authorization role is `admin`; staff
+accounts and limited permissions are not enabled yet. Protect the database URL and
+do not store account passwords in `.env` or Git.

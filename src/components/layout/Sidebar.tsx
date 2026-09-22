@@ -53,6 +53,16 @@ export function Sidebar({
           <strong>Haroon Ahmed</strong>
           <small>Administrator</small>
         </div>
+        <button
+          className="sidebar-signout"
+          type="button"
+          onClick={async () => {
+            await fetch("/api/auth/logout", { method: "POST" });
+            window.location.assign("/login");
+          }}
+        >
+          Sign out
+        </button>
       </div>
     </aside>
   );
