@@ -10,6 +10,11 @@ export function SettingsPage({ settings, isSaving, onChange, onSave }: Props) {
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [backupMessage, setBackupMessage] = useState("");
   const [backupPassword, setBackupPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState("");
   const field = (key: Exclude<keyof CompanySettings, "vatRate">, value: string) =>
     onChange({ ...settings, [key]: value });
   async function downloadBackup() {
@@ -41,6 +46,34 @@ export function SettingsPage({ settings, isSaving, onChange, onSave }: Props) {
       setBackupMessage(error instanceof Error ? error.message : "Unable to create backup.");
     } finally {
       setIsBackingUp(false);
+    }
+  }
+  async function submitPassword(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPasswordMessage("");
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage("New passwords do not match.");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      const response = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.message ?? "Could not change password.");
+      }
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      window.location.assign("/login");
+    } catch (error) {
+      setPasswordMessage(error instanceof Error ? error.message : "Could not change password.");
+    } finally {
+      setChangingPassword(false);
     }
   }
   return (
@@ -111,6 +144,54 @@ export function SettingsPage({ settings, isSaving, onChange, onSave }: Props) {
           </label>
           <button type="submit" className="primary" disabled={isSaving}>
             {isSaving ? "Saving…" : "Save settings"}
+          </button>
+        </form>
+      </section>
+      <section className="panel section-panel password-card">
+        <div>
+          <h2>Change password</h2>
+          <p>Changing your password signs out all devices. Sign in again with the new password.</p>
+        </div>
+        <form onSubmit={(event) => void submitPassword(event)}>
+          <label>
+            Current password
+            <input
+              type="password"
+              autoComplete="current-password"
+              required
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+            />
+          </label>
+          <label>
+            New password
+            <input
+              type="password"
+              autoComplete="new-password"
+              minLength={14}
+              required
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+            />
+          </label>
+          <label>
+            Confirm new password
+            <input
+              type="password"
+              autoComplete="new-password"
+              minLength={14}
+              required
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+            />
+          </label>
+          {passwordMessage && (
+            <p role="alert" className="password-error">
+              {passwordMessage}
+            </p>
+          )}
+          <button className="primary" type="submit" disabled={changingPassword}>
+            {changingPassword ? "Changing…" : "Change password"}
           </button>
         </form>
       </section>

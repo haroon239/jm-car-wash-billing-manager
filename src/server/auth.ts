@@ -85,3 +85,45 @@ export async function deleteSession(token: string | undefined) {
       tokenHash(token),
     ]);
 }
+
+export async function changePassword(
+  token: string | undefined,
+  currentPassword: string,
+  newPassword: string,
+) {
+  if (!token || token.length > 128) return false;
+  const client = await requireDatabase().connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
+      `SELECT u.id,u.password_hash FROM app_sessions s
+       JOIN app_users u ON u.id=s.user_id
+       WHERE s.token_hash=$1 AND s.expires_at>NOW() AND u.is_active=TRUE AND u.role='admin'
+       FOR UPDATE OF u`,
+      [tokenHash(token)],
+    );
+    const user = result.rows[0];
+    if (!user || !(await verifyPassword(currentPassword, user.password_hash))) {
+      await client.query("ROLLBACK");
+      return false;
+    }
+    if (await verifyPassword(newPassword, user.password_hash)) {
+      await client.query("ROLLBACK");
+      throw Object.assign(new Error("Choose a password different from the current one."), {
+        status: 400,
+      });
+    }
+    await client.query(
+      "UPDATE app_users SET password_hash=$2,failed_logins=0,locked_until=NULL,updated_at=NOW() WHERE id=$1",
+      [user.id, await hashPassword(newPassword)],
+    );
+    await client.query("DELETE FROM app_sessions WHERE user_id=$1", [user.id]);
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
