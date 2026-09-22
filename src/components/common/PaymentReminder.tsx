@@ -19,7 +19,7 @@ export function PaymentReminder({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => setSentAt(invoice.reminderSentAt ?? null), [invoice.reminderSentAt]);
-  if (!canSendPaymentReminder(invoice) && !sentAt) return null;
+  if (!canSendPaymentReminder(invoice)) return null;
   const number = (phone ?? invoice.phone ?? "").replace(/\D/g, "");
   async function mark(sent: boolean) {
     setBusy(true);
@@ -43,23 +43,21 @@ export function PaymentReminder({
   }
   return (
     <div className="payment-reminder-actions">
-      {invoice.balance > 0 && (
-        <button
-          type="button"
-          className="reminder-button"
-          disabled={!number || busy}
-          onClick={() => {
-            window.open(
-              `https://wa.me/${number}?text=${encodeURIComponent(paymentReminderMessage)}`,
-              "_blank",
-              "noopener,noreferrer",
-            );
-            setOpened(true);
-          }}
-        >
-          {sentAt ? "Send reminder again" : "Send reminder"}
-        </button>
-      )}
+      <button
+        type="button"
+        className="reminder-button"
+        disabled={!number || busy}
+        onClick={() => {
+          window.open(
+            `https://wa.me/${number}?text=${encodeURIComponent(paymentReminderMessage)}`,
+            "_blank",
+            "noopener,noreferrer",
+          );
+          setOpened(true);
+        }}
+      >
+        {sentAt ? "Send reminder again" : "Send reminder"}
+      </button>
       {opened && (
         <>
           <small>After sending in WhatsApp, confirm here:</small>

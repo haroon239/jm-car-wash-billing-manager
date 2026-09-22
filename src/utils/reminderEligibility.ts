@@ -1,8 +1,13 @@
 export function canSendPaymentReminder(
-  invoice: { balance: number; dueDate: string },
+  invoice: { balance: number; dueDate: string; paidAmount?: number; status?: string },
   today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Dubai" }),
 ) {
-  return invoice.balance > 0 && invoice.dueDate.slice(0, 10) <= today;
+  return (
+    invoice.balance > 0 &&
+    (invoice.paidAmount ?? 0) === 0 &&
+    !["paid", "partially_paid", "partially_overdue"].includes(invoice.status ?? "") &&
+    invoice.dueDate.slice(0, 10) <= today
+  );
 }
 
 export function isInvoiceDueForDisplay(
