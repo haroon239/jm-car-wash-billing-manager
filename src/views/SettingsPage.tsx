@@ -15,6 +15,8 @@ export function SettingsPage({ settings, isSaving, onChange, onSave }: Props) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState("");
+  const [showAccountPasswords, setShowAccountPasswords] = useState(false);
+  const [showBackupPassword, setShowBackupPassword] = useState(false);
   const field = (key: Exclude<keyof CompanySettings, "vatRate">, value: string) =>
     onChange({ ...settings, [key]: value });
   async function downloadBackup() {
@@ -156,7 +158,7 @@ export function SettingsPage({ settings, isSaving, onChange, onSave }: Props) {
           <label>
             Current password
             <input
-              type="password"
+              type={showAccountPasswords ? "text" : "password"}
               autoComplete="current-password"
               required
               value={currentPassword}
@@ -166,7 +168,7 @@ export function SettingsPage({ settings, isSaving, onChange, onSave }: Props) {
           <label>
             New password
             <input
-              type="password"
+              type={showAccountPasswords ? "text" : "password"}
               autoComplete="new-password"
               minLength={14}
               required
@@ -177,13 +179,21 @@ export function SettingsPage({ settings, isSaving, onChange, onSave }: Props) {
           <label>
             Confirm new password
             <input
-              type="password"
+              type={showAccountPasswords ? "text" : "password"}
               autoComplete="new-password"
               minLength={14}
               required
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
             />
+          </label>
+          <label className="show-password-control">
+            <input
+              type="checkbox"
+              checked={showAccountPasswords}
+              onChange={(event) => setShowAccountPasswords(event.target.checked)}
+            />
+            Show passwords
           </label>
           {passwordMessage && (
             <p role="alert" className="password-error">
@@ -205,13 +215,21 @@ export function SettingsPage({ settings, isSaving, onChange, onSave }: Props) {
           <small>This file contains private customer data. Store it in a protected folder.</small>
         </div>
         <input
-          type="password"
+          type={showBackupPassword ? "text" : "password"}
           value={backupPassword}
           onChange={(event) => setBackupPassword(event.target.value)}
           placeholder="Backup password"
           autoComplete="off"
           aria-label="Backup password"
         />
+        <label className="show-password-control backup-show-password">
+          <input
+            type="checkbox"
+            checked={showBackupPassword}
+            onChange={(event) => setShowBackupPassword(event.target.checked)}
+          />
+          Show password
+        </label>
         <button
           className="primary"
           disabled={isBackingUp || !backupPassword}

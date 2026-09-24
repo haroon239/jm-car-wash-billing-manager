@@ -2497,6 +2497,23 @@ td small {
   border-radius: 8px;
   padding: 12px;
 }
+.show-password-control {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 8px !important;
+  width: fit-content;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.show-password-control input {
+  width: auto !important;
+  margin: 0;
+}
+.backup-show-password {
+  grid-column: 2;
+}
 .login-card .login-error {
   color: #b42318;
 }
@@ -2539,4 +2556,9 @@ td small {
 }
 .password-card .password-error {
   color: #b42318;
+}
+@media (max-width: 800px) {
+  .backup-show-password {
+    grid-column: 1;
+  }
 }
