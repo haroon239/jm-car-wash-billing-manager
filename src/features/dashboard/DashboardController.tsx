@@ -137,6 +137,10 @@ export function DashboardController() {
   const [customerPage, setCustomerPage] = useState(1);
   const [active, setActive] = useState<Customer | null>(null);
   const [editing, setEditing] = useState<Customer | null>(null);
+  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
+  const [deleteConfirmationName, setDeleteConfirmationName] = useState("");
+  const [isDeletingCustomer, setIsDeletingCustomer] = useState(false);
+  const [deleteCustomerError, setDeleteCustomerError] = useState("");
   const [renewing, setRenewing] = useState(false);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [customerForm, setCustomerForm] = useState<CustomerForm>({
@@ -1317,6 +1321,53 @@ export function DashboardController() {
     }
   }
 
+  function openDeleteCustomer(customer: Customer) {
+    setDeletingCustomer(customer);
+    setDeleteConfirmationName("");
+    setDeleteCustomerError("");
+  }
+
+  async function permanentlyDeleteCustomer() {
+    if (!deletingCustomer || deleteConfirmationName !== deletingCustomer.name) return;
+    setIsDeletingCustomer(true);
+    setDeleteCustomerError("");
+    try {
+      const deletedInvoiceIds = new Set(
+        invoices
+          .filter((invoice) => invoice.customerId === deletingCustomer.id)
+          .map((invoice) => invoice.id),
+      );
+      const response = await fetch(`/api/customers/${deletingCustomer.id}?permanent=true`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmationName: deleteConfirmationName }),
+      });
+      if (!response.ok) {
+        const result = (await response.json().catch(() => null)) as { message?: string } | null;
+        throw new Error(result?.message || "Unable to delete customer.");
+      }
+      setCustomers((current) => current.filter((item) => item.id !== deletingCustomer.id));
+      setInvoices((current) =>
+        current.filter((invoice) => invoice.customerId !== deletingCustomer.id),
+      );
+      setPayments((current) =>
+        current.filter((payment) => !deletedInvoiceIds.has(payment.invoiceId)),
+      );
+      if (active?.id === deletingCustomer.id) setActive(null);
+      if (profileCustomerId === deletingCustomer.id) setProfileCustomerId(null);
+      setEditing(null);
+      setShowCustomerForm(false);
+      setDeletingCustomer(null);
+      setDataRevision((value) => value + 1);
+      void reloadLocations();
+      setNotice(`${deletingCustomer.name} and all related records permanently deleted.`);
+    } catch (error) {
+      setDeleteCustomerError(error instanceof Error ? error.message : "Unable to delete customer.");
+    } finally {
+      setIsDeletingCustomer(false);
+    }
+  }
+
   function openPlanForm(plan?: Plan) {
     setEditingPlan(plan ?? null);
     setPlanForm(
@@ -2429,13 +2480,22 @@ export function DashboardController() {
               )}
               <div className="form-actions">
                 {editing && !renewing && (
-                  <button
-                    type="button"
-                    className="danger"
-                    onClick={() => void archiveCustomer(editing)}
-                  >
-                    Archive customer
-                  </button>
+                  <div className="customer-danger-actions">
+                    <button
+                      type="button"
+                      className="danger"
+                      onClick={() => void archiveCustomer(editing)}
+                    >
+                      Archive customer
+                    </button>
+                    <button
+                      type="button"
+                      className="danger permanent-delete-trigger"
+                      onClick={() => openDeleteCustomer(editing)}
+                    >
+                      Delete permanently
+                    </button>
+                  </div>
                 )}
                 <button
                   type="button"
@@ -2455,6 +2515,67 @@ export function DashboardController() {
                 </button>
               </div>
             </form>
+          </section>
+        </div>
+      )}
+
+      {deletingCustomer && (
+        <div className="modal-backdrop" onMouseDown={() => setDeletingCustomer(null)}>
+          <section
+            className="delete-customer-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-customer-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="modal-head">
+              <div>
+                <span className="delete-warning-label">PERMANENT ACTION</span>
+                <h2 id="delete-customer-title">Delete {deletingCustomer.name}?</h2>
+                <p>This cannot be undone.</p>
+              </div>
+              <button type="button" onClick={() => setDeletingCustomer(null)} aria-label="Close">
+                ×
+              </button>
+            </div>
+            <div className="delete-customer-body">
+              <div className="delete-customer-warning">
+                This will permanently delete the customer, vehicles, contracts, washes, bills,
+                payments and activity history.
+              </div>
+              <label>
+                To confirm, type <strong>{deletingCustomer.name}</strong>
+                <input
+                  autoFocus
+                  value={deleteConfirmationName}
+                  onChange={(event) => setDeleteConfirmationName(event.target.value)}
+                  autoComplete="off"
+                />
+              </label>
+              {deleteCustomerError && (
+                <p role="alert" className="delete-customer-error">
+                  {deleteCustomerError}
+                </p>
+              )}
+              <div className="delete-customer-actions">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setDeletingCustomer(null)}
+                  disabled={isDeletingCustomer}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="confirm-permanent-delete"
+                  disabled={isDeletingCustomer || deleteConfirmationName !== deletingCustomer.name}
+                  onClick={() => void permanentlyDeleteCustomer()}
+                >
+                  {isDeletingCustomer ? "Deleting…" : "Delete customer permanently"}
+                </button>
+              </div>
+            </div>
           </section>
         </div>
       )}

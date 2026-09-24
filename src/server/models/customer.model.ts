@@ -319,3 +319,35 @@ export async function restoreCustomer(id: number) {
     )
   ).rows[0];
 }
+
+export async function permanentlyDeleteCustomer(id: number, confirmationName: string) {
+  const client = await requireDatabase().connect();
+  try {
+    await client.query("BEGIN");
+    const customer = await client.query("SELECT id,name FROM customers WHERE id=$1 FOR UPDATE", [
+      id,
+    ]);
+    if (!customer.rows[0]) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+    if (customer.rows[0].name !== confirmationName) {
+      throw Object.assign(new Error("Customer name does not match."), { status: 400 });
+    }
+
+    await client.query(
+      "DELETE FROM payments WHERE invoice_id IN (SELECT id FROM invoices WHERE customer_id=$1)",
+      [id],
+    );
+    await client.query("DELETE FROM invoices WHERE customer_id=$1", [id]);
+    await client.query("DELETE FROM contract_stops WHERE customer_id=$1", [id]);
+    await client.query("DELETE FROM customers WHERE id=$1", [id]);
+    await client.query("COMMIT");
+    return customer.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}

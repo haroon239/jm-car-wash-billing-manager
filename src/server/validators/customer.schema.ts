@@ -58,4 +58,8 @@ export const customerSchema = z
   });
 
 export const idSchema = z.coerce.number().int().positive();
+
+export const customerDeletionSchema = z.object({
+  confirmationName: z.string().trim().min(1).max(120),
+});
 export type CustomerInput = z.infer<typeof customerSchema>;
