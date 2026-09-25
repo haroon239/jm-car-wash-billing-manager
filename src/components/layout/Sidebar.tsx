@@ -50,7 +50,7 @@ export function Sidebar({
       <div className="profile">
         <div className="avatar">HA</div>
         <div>
-          <strong>Haroon Ahmed</strong>
+          <strong>Ilyas Khan</strong>
           <small>Administrator</small>
         </div>
         <button

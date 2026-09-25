@@ -57,7 +57,7 @@ export function PageHeader({
 }) {
   const item = copy[section];
   const eyebrow = section === "overview" ? formatDubaiDate().toUpperCase() : item.eyebrow;
-  const title = section === "overview" ? `${getDubaiGreeting()}, Haroon` : item.title;
+  const title = section === "overview" ? `${getDubaiGreeting()}, Ilyas` : item.title;
 
   return (
     <header>
