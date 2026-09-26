@@ -20,6 +20,11 @@ const customer = {
 test("valid historical contract dates are accepted", () => {
   assert.equal(customerSchema.safeParse(customer).success, true);
 });
+test("contact numbers require a country code and UAE local numbers are normalized", () => {
+  const local = customerSchema.parse({ ...customer, phone: "055-8005503" });
+  assert.equal(local.phone, "971558005503");
+  assert.equal(customerSchema.safeParse({ ...customer, phone: "058515824" }).success, false);
+});
 test("contract and billing dates cannot precede start", () => {
   assert.equal(
     customerSchema.safeParse({ ...customer, contractEndDate: "2026-08-12" }).success,

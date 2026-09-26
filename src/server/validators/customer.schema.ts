@@ -6,7 +6,11 @@ export const customerSchema = z
     phone: z
       .string()
       .trim()
-      .regex(/^\d{7,15}$/),
+      .transform((value) => value.replace(/\D/g, ""))
+      .transform((value) => (/^05\d{8}$/.test(value) ? `971${value.slice(1)}` : value))
+      .refine((value) => /^[1-9]\d{7,14}$/.test(value), {
+        message: "Enter a valid mobile number with country code.",
+      }),
     email: z.email().optional().or(z.literal("")),
     plateNumber: z.string().trim().min(2).max(40),
     buildingNo: z.string().trim().max(50).optional().default(""),

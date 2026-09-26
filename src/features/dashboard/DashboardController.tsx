@@ -2146,11 +2146,19 @@ export function DashboardController() {
                       phone: event.target.value.replace(/\D/g, ""),
                     })
                   }
-                  placeholder="e.g. 971501234567 or 923001234567"
+                  onBlur={() => {
+                    if (/^05\d{8}$/.test(customerForm.phone)) {
+                      setCustomerForm({
+                        ...customerForm,
+                        phone: `971${customerForm.phone.slice(1)}`,
+                      });
+                    }
+                  }}
+                  placeholder="e.g. 971501234567"
                 />
                 <small>
-                  Enter country code followed by the number; +, spaces and dashes are removed
-                  automatically.
+                  Country code is mandatory. UAE numbers entered as 05… are automatically saved as
+                  9715…; +, spaces and dashes are removed.
                 </small>
               </label>
               <label>
